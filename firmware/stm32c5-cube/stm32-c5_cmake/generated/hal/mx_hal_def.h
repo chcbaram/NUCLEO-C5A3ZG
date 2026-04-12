@@ -34,9 +34,16 @@ extern "C" {
 #include "mx_icache.h"
 #include "mx_rcc.h"
 #include "mx_tim1.h"
+#include "mx_usart2.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
+
+  /* *************************************************************
+    USART2 / LPDMA1_CH0: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for Channel instance
+    ************************************************************* */
 
 /* Exported macros -----------------------------------------------------------*/
 
@@ -84,6 +91,12 @@ extern "C" {
       As a result, no aliases are generated for mx_tim1_init
     ************************************************************* */
 
+  /* *************************************************************
+    USART2: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for mx_usart2_uart_init
+    ************************************************************* */
+
 /* ########################################################### */
 
 /* ########### Aliases to De-Initialization functions ########### */
@@ -124,6 +137,12 @@ extern "C" {
       As a result, no aliases are generated for mx_tim1_deinit
     ************************************************************* */
 
+  /* *************************************************************
+    USART2: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for mx_usart2_uart_deinit
+    ************************************************************* */
+
 /* ########################################################### */
 
 /* ########### Aliases to get HAL handle functions ########### */
@@ -140,9 +159,21 @@ extern "C" {
       As a result, no aliases are generated for mx_tim1_gethandle
     ************************************************************* */
 
+  /* *************************************************************
+    USART2: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for mx_usart2_uart_gethandle
+    ************************************************************* */
+
 /* ########################################################### */
 
 /* ########### Aliases to get IRQ Handlers functions ########### */
+  /* *************************************************************
+    USART2 / LPDMA1_CH0: No software label has been defined for this peripheral instance
+      in the STM32CubeMX2 configuration panel.
+      As a result, no aliases are generated for LPDMA1_CH0_IRQHandler and LPDMA1_CH0_IRQn
+    ************************************************************* */
+
   /* ########################################################### */
 
 #ifdef __cplusplus

@@ -9,6 +9,7 @@
 
 void apInit(void)
 {  
+  cliOpen(HW_UART_CH_CLI, 115200);    
 }
 
 void apMain(void)
@@ -26,5 +27,7 @@ void apMain(void)
       for (int i=0; i<LED_MAX_CH; i++)
         ledToggle(i);
     }
+
+    cliMain();
   }
 }

@@ -343,10 +343,12 @@
       <description>STMicroelectronics HAL CORE, GPIO and DMA Init dependencies</description>
       <require condition="CMSIS Core"/>
       <require Cclass="Device" Cgroup="STM32 HAL" Csub="GPIO"/>
+      <require Cclass="Device" Cgroup="STM32 HAL" Csub="DMA"/>
     </condition>
     <condition id="HAL CORE DMA Init">
       <description>STMicroelectronics HAL CORE and DMA Init dependencies</description>
       <require condition="CMSIS Core"/>
+      <require Cclass="Device" Cgroup="STM32 HAL" Csub="DMA"/>
     </condition>
     <condition id="HAL CORE Init and CRC">
       <description>STMicroelectronics HAL CRC Init dependencies</description>
@@ -443,8 +445,7 @@
       <description>STMicroelectronics HAL UART Init dependencies</description>
       <require condition="HAL CORE GPIO DMA Init"/>
       <require condition="HAL System Init"/>
-
-      <require Cclass="Device" Cgroup="STM32 LL" Csub="USART"/>
+      <require Cclass="Device" Cgroup="STM32 HAL" Csub="UART"/>
     </condition>
     <condition id="HAL CORE GPIO DMA Init and USART">
       <description>STMicroelectronics HAL USART Init dependencies</description>
@@ -564,6 +565,8 @@
         <file category="header" name="stm32c5xx_hal_conf.h" />
         <file category="header" name="stm32c5xx_hal_conf.h" />
         <file category="header" name="stm32c5xx_hal_conf.h" />
+        <file category="header" name="stm32c5xx_hal_conf.h" />
+        <file category="header" name="stm32c5xx_hal_conf.h" />
       </files>
     </component>
     <component generator="stm32c5xx_hal_mx2codegen" Cclass="Device" Cgroup="STM32CubeMX2 Config" Csub="CORTEX DEBUG"   Cversion="2.0.0" condition="HAL CORE Init GPIO and CORTEX">
@@ -626,6 +629,13 @@
       <files>
         <file category="source" name="mx_tim1.c" />
         <file category="header" name="mx_tim1.h" />
+      </files>
+    </component>
+    <component generator="stm32c5xx_hal_mx2codegen" Cclass="Device" Cgroup="STM32CubeMX2 Config" Csub="UART"   Cversion="2.0.0" condition="HAL CORE GPIO DMA Init and UART">
+      <description>TO BE DEFINED</description>
+      <files>
+        <file category="source" name="mx_usart2.c" />
+        <file category="header" name="mx_usart2.h" />
       </files>
     </component>
   </components>
