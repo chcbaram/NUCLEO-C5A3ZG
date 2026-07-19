@@ -26,8 +26,14 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
   src/ap/*.cpp
   src/ap/*.c
   src/bsp/*.c
-  src/bsp/rtos/*.c  
+  src/bsp/rtos/*.c
   src/bsp/device/*.c
+
+  # FreeRTOS (CMSIS-RTOS v2, Cortex-M33 non-secure, heap_4) - 비재귀 glob
+  src/lib/FreeRTOS/Source/*.c
+  src/lib/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure/*.c
+  src/lib/FreeRTOS/Source/CMSIS_RTOS_V2/*.c
+  src/lib/FreeRTOS/Source/portable/MemMang/heap_4.c
 )
 
 # 하위폴더에 있는 파일까지 포함한다.
@@ -91,6 +97,11 @@ target_include_directories(${EXECUTABLE} PRIVATE
   src/lib/ST/stm32c5xx_drivers/ll
   src/lib/ST/stm32c5xx_drivers/hal
   src/lib/ST/stm32c5xx_drivers/os_port/no_os
+
+  # FreeRTOS
+  src/lib/FreeRTOS/Source/include
+  src/lib/FreeRTOS/Source/CMSIS_RTOS_V2
+  src/lib/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE

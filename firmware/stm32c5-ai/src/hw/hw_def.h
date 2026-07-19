@@ -16,6 +16,21 @@
 #define _USE_HW_FAULT
 
 
+//-- RTOS
+//
+#define _USE_HW_RTOS
+
+#define _USE_HW_THREAD
+#define      HW_THREAD_MAX_CNT          32
+
+#define _HW_DEF_THREAD_MAIN_PRI         osPriorityNormal
+#define _HW_DEF_THREAD_MAIN_STACK       (2*1024)
+#define _HW_DEF_THREAD_CLI_PRI          osPriorityNormal
+#define _HW_DEF_THREAD_CLI_STACK        (8*1024)
+#define _HW_DEF_THREAD_EVENT_PRI        osPriorityNormal
+#define _HW_DEF_THREAD_EVENT_STACK      (4*1024)
+
+
 #define _USE_HW_LED
 #define      HW_LED_MAX_CH          3
 

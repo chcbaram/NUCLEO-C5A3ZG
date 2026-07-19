@@ -17,7 +17,7 @@ typedef int16_t thread_id_t;
 
 
 bool threadInit(void);
-bool threadCreate(const char *name, void (*func)(void const *arg), void *arg, osPriority priority, uint32_t stack_bytes);
+bool threadCreate(const char *name, void (*func)(void const *arg), void *arg, osPriority_t priority, uint32_t stack_bytes);
 bool threadBegin(void);
 
 #endif

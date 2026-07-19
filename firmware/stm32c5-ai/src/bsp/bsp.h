@@ -8,6 +8,7 @@ extern "C" {
 
 #include "def.h"
 #include "stm32_hal.h"
+#include "rtos.h"
 
 
 typedef enum

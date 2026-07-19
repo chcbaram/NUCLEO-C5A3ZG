@@ -12,14 +12,14 @@
 
 typedef struct thread_t_
 {
-  char          name[32];
-  void         (*main)(void const *arg);
+  char           name[32];
+  void          (*main)(void const *arg);
   void          *arg;
-  bool          is_begin;
-  osPriority    priority;
-  uint32_t      stack_bytes;
-  osThreadDef_t thread_def;
-  osThreadId    thread_id;
+  bool           is_begin;
+  osPriority_t   priority;
+  uint32_t       stack_bytes;
+  osThreadAttr_t attr;
+  osThreadId_t   thread_id;
 } thread_t;
 
 typedef struct
@@ -53,7 +53,7 @@ bool threadInit(void)
   return true;
 }
 
-bool threadCreate(const char *name, void (*func)(void const *arg), void *arg, osPriority priority, uint32_t stack_bytes)
+bool threadCreate(const char *name, void (*func)(void const *arg), void *arg, osPriority_t priority, uint32_t stack_bytes)
 {
   bool ret = false;
   uint32_t index;
@@ -62,11 +62,12 @@ bool threadCreate(const char *name, void (*func)(void const *arg), void *arg, os
 
   lock();
   if (info.count < THREAD_MAX_CNT)
-  {    
+  {
     index = info.count;
 
     strcpy(info.thread[index].name, name);
     info.thread[index].main = func;
+    info.thread[index].arg = arg;
     info.thread[index].priority = priority;
     info.thread[index].stack_bytes = stack_bytes;
 
@@ -91,12 +92,15 @@ bool threadBegin(void)
   {
     if (info.thread[i].main != NULL && info.thread[i].is_begin == false)
     {
-      info.thread[i].thread_def.name      = (char *)info.thread[i].name;
-      info.thread[i].thread_def.pthread   = info.thread[i].main;
-      info.thread[i].thread_def.instances = 0;
-      info.thread[i].thread_def.stacksize = info.thread[i].stack_bytes/4;
-      info.thread[i].thread_def.tpriority = info.thread[i].priority;
-      info.thread[i].thread_id = osThreadCreate(&info.thread[i].thread_def, info.thread[i].arg);
+      // CMSIS-RTOS v2 : stack_size 는 바이트 단위
+      //
+      info.thread[i].attr = (osThreadAttr_t){0, };
+      info.thread[i].attr.name       = info.thread[i].name;
+      info.thread[i].attr.stack_size = info.thread[i].stack_bytes;
+      info.thread[i].attr.priority   = info.thread[i].priority;
+      info.thread[i].thread_id = osThreadNew((osThreadFunc_t)info.thread[i].main,
+                                             info.thread[i].arg,
+                                             &info.thread[i].attr);
       assert(info.thread[i].thread_id);
 
       if (info.thread[i].thread_id != NULL)
@@ -136,7 +140,7 @@ void cliThread(cli_args_t *args)
     p_thread = info.thread;
     for (int i=0; i<info.count; i++)
     {
-      vTaskGetInfo(p_thread[i].thread_id, &task_status, pdTRUE, eInvalid);
+      vTaskGetInfo((TaskHandle_t)p_thread[i].thread_id, &task_status, pdTRUE, eInvalid);
 
       cliPrintf("%-16s, stack : %4d free %04d, prio : %d\n",
                 p_thread[i].name,

@@ -155,11 +155,20 @@ void PendSV_Handler(void)
 #endif
 
 #ifdef _USE_HW_RTOS
-extern void osSystickHandler(void);
+extern void xPortSysTickHandler(void);
 
+/**
+  * @brief System tick timer. FreeRTOS 와 HAL 이 SysTick 을 공유한다.
+  *        스케줄러 시작 전에는 HAL 틱만, 시작 후에는 FreeRTOS 틱도 구동한다.
+  */
 void SysTick_Handler(void)
 {
-  osSystickHandler();
+  HAL_IncTick();
+
+  if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+  {
+    xPortSysTickHandler();
+  }
 }
 #else
 extern void swtimerISR(void);
@@ -170,6 +179,6 @@ extern void swtimerISR(void);
 void SysTick_Handler(void)
 {
   HAL_IncTick();
-  HAL_CORTEX_SYSTICK_IRQHandler();  
+  HAL_CORTEX_SYSTICK_IRQHandler();
 }
 #endif

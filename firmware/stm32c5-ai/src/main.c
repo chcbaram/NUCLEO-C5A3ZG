@@ -3,16 +3,22 @@
 
 
 #ifdef _USE_HW_RTOS
-static void mainThread(void const *arg);
+static void mainThread(void *arg);
 
 
 int main(void)
 {
   bspInit();
 
+  osKernelInitialize();
 
-  osThreadDef(main, mainThread, _HW_DEF_THREAD_MAIN_PRI, 0, _HW_DEF_THREAD_MAIN_STACK/4);
-  if (osThreadCreate(osThread(main), NULL) == NULL)
+  const osThreadAttr_t attr =
+  {
+    .name       = "main",
+    .stack_size = _HW_DEF_THREAD_MAIN_STACK,
+    .priority   = _HW_DEF_THREAD_MAIN_PRI,
+  };
+  if (osThreadNew(mainThread, NULL, &attr) == NULL)
   {
     ledInit();
 
@@ -25,15 +31,15 @@ int main(void)
       ledOn(_DEF_LED1);
       delay(500);
       ledOff(_DEF_LED1);
-      delay(500);      
+      delay(500);
     }
   }
 
-  osKernelStart();  
+  osKernelStart();
   return 0;
 }
 
-void mainThread(void const *arg)
+void mainThread(void *arg)
 {
   UNUSED(arg);
 
@@ -45,7 +51,7 @@ void mainThread(void const *arg)
 int main(void)
 {
   bspInit();
-  
+
   hwInit();
   apInit();
   apMain();

@@ -3,31 +3,24 @@
 
 
 
-
-
-
-
 void apInit(void)
-{  
-  cliOpen(HW_UART_CH_CLI, 115200);    
+{
+  // 각 모듈의 init() 실행 (모듈은 여기서 threadCreate 로 스레드를 등록한다)
+  //
+  moduleInit();
 }
 
 void apMain(void)
 {
-  uint32_t pre_time;
+  // 등록된 스레드를 모두 생성한다
+  //
+  threadBegin();
 
+  logBoot(false);
 
-  pre_time = millis();
   while(1)
   {
-    if (millis()-pre_time >= 500)
-    {
-      pre_time = millis();
-
-      for (int i=0; i<LED_MAX_CH; i++)
-        ledToggle(i);
-    }
-
-    cliMain();
+    ledToggle(_DEF_LED1);
+    delay(500);
   }
 }
