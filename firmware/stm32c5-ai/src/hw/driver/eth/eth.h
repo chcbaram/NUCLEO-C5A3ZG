@@ -24,6 +24,7 @@ bool ethInit(void);
 bool ethIsInit(void);
 bool ethGetLink(eth_link_t *p_link);
 void ethGetMacAddr(uint8_t *p_mac);
+hal_eth_handle_t *ethGetHandle(void);
 
 
 #ifdef __cplusplus

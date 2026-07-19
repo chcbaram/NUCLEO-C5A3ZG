@@ -41,6 +41,8 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
   src/lib/lwip/src/api/*.c
   src/lib/lwip/src/netif/ethernet.c
   src/lib/lwip/ports/freertos/arch/*.c
+  src/lib/lwip/interfaces/ethernet/*.c
+  src/lib/lwip/port/*.c
 )
 
 # 하위폴더에 있는 파일까지 포함한다.
@@ -115,6 +117,7 @@ target_include_directories(${EXECUTABLE} PRIVATE
   src/lib/lwip/ports/common
   src/lib/lwip/ports/freertos
   src/lib/lwip/port
+  src/lib/lwip/interfaces/ethernet
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE

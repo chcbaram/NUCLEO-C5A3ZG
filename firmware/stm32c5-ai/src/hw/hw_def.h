@@ -29,6 +29,8 @@
 #define _HW_DEF_THREAD_CLI_STACK        (8*1024)
 #define _HW_DEF_THREAD_EVENT_PRI        osPriorityNormal
 #define _HW_DEF_THREAD_EVENT_STACK      (4*1024)
+#define _HW_DEF_THREAD_NET_PRI          osPriorityNormal
+#define _HW_DEF_THREAD_NET_STACK        (2*1024)
 
 
 #define _USE_HW_LED

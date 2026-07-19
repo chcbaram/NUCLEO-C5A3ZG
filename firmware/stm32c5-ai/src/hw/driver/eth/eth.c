@@ -131,6 +131,11 @@ void ethGetMacAddr(uint8_t *p_mac)
   memcpy(p_mac, mac_addr, 6);
 }
 
+hal_eth_handle_t *ethGetHandle(void)
+{
+  return &hETH1;
+}
+
 bool phyRead(uint8_t reg, uint16_t *p_val)
 {
   return (HAL_ETH_MDIO_C22ReadData(&hETH1, HW_ETH_PHY_ADDR, reg, p_val) == HAL_OK);
