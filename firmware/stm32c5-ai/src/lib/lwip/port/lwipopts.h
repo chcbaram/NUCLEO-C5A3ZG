@@ -147,7 +147,7 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
   * MEM_SIZE: the size of the heap memory. If the application will send
   * a lot of data that needs to be copied, this must be set high.
   */
-#define MEM_SIZE                        (16 * 1024)
+#define MEM_SIZE                        (24 * 1024)
 
 /*
    ------------------------------------------------

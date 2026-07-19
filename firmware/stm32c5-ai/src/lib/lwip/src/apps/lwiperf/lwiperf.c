@@ -238,10 +238,17 @@ lwip_tcp_conn_report(lwiperf_state_tcp_t *conn, enum lwiperf_report_type report_
     } else {
       bandwidth_kbitpsec = (conn->bytes_transferred / duration_ms) * 8U;
     }
-    conn->report_fn(conn->report_arg, report_type,
-                    &conn->conn_pcb->local_ip, conn->conn_pcb->local_port,
-                    &conn->conn_pcb->remote_ip, conn->conn_pcb->remote_port,
-                    conn->bytes_transferred, duration_ms, bandwidth_kbitpsec);
+    /* [local patch] tcp_err 경로에서는 conn_pcb 가 이미 NULL 이므로 역참조 금지 (연결 거부 시 폴트 방지) */
+    if (conn->conn_pcb != NULL) {
+      conn->report_fn(conn->report_arg, report_type,
+                      &conn->conn_pcb->local_ip, conn->conn_pcb->local_port,
+                      &conn->conn_pcb->remote_ip, conn->conn_pcb->remote_port,
+                      conn->bytes_transferred, duration_ms, bandwidth_kbitpsec);
+    } else {
+      conn->report_fn(conn->report_arg, report_type,
+                      NULL, 0, NULL, 0,
+                      conn->bytes_transferred, duration_ms, bandwidth_kbitpsec);
+    }
   }
 }
 
@@ -328,7 +335,8 @@ lwiperf_tcp_client_send_more(lwiperf_state_tcp_t *conn)
       if (conn->bytes_transferred == 48) { /* @todo: fix this for intermediate settings, too */
         txlen_max = TCP_MSS - 24;
       }
-      apiflags = 0; /* no copying needed */
+      /* [local patch] STM32C5 ETH DMA 는 FLASH(txbuf_const) 를 TX 소스로 못 읽으므로 RAM 복사 강제 */
+      apiflags = TCP_WRITE_FLAG_COPY;
       send_more = 1;
     }
     txlen = txlen_max;
