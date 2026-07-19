@@ -67,13 +67,44 @@ void netThread(void const *arg)
 
   logPrintf("     net: waiting for link / DHCP...\n");
 
+  // 로깅은 여기(net 스레드)에서 폴링으로 처리한다.
+  // ext 콜백은 core-lock 이 걸린 링크모니터 컨텍스트에서 실행되고 스택이 작으므로
+  // logPrintf(vsnprintf) 같은 무거운 작업을 넣지 않는다.
+  //
+  bool prev_link = false;
+  bool prev_ip   = false;
+
   while(1)
   {
-    delay(1000);
+    bool link   = netif_is_link_up(&s_netif);
+    bool has_ip = !ip4_addr_isany_val(*netif_ip4_addr(&s_netif));
+
+    if (link != prev_link)
+    {
+      logPrintf("net: link %s\n", link ? "up":"down");
+      prev_link = link;
+    }
+
+    if (has_ip != prev_ip)
+    {
+      if (has_ip)
+      {
+        logPrintf("net: IP   %s\n", ip4addr_ntoa(netif_ip4_addr(&s_netif)));
+        logPrintf("net: MASK %s\n", ip4addr_ntoa(netif_ip4_netmask(&s_netif)));
+        logPrintf("net: GW   %s\n", ip4addr_ntoa(netif_ip4_gw(&s_netif)));
+      }
+      else
+      {
+        logPrintf("net: IP released\n");
+      }
+      prev_ip = has_ip;
+    }
+
+    delay(500);
   }
 }
 
-// tcpip_thread 컨텍스트에서 호출됨
+// 링크모니터(core-lock) 컨텍스트에서 호출됨 -> DHCP 제어만, 무거운 작업 금지
 //
 void netExtCallback(struct netif *netif, netif_nsc_reason_t reason,
                     const netif_ext_callback_args_t *p_args)
@@ -84,20 +115,11 @@ void netExtCallback(struct netif *netif, netif_nsc_reason_t reason,
   {
     if (netif_is_link_up(netif))
     {
-      logPrintf("net: link up -> DHCP start\n");
       netifapi_dhcp_start(netif);
     }
     else
     {
-      logPrintf("net: link down -> DHCP stop\n");
       netifapi_dhcp_stop(netif);
     }
-  }
-
-  if ((reason & LWIP_NSC_IPV4_ADDR_VALID) == LWIP_NSC_IPV4_ADDR_VALID)
-  {
-    logPrintf("net: IP   %s\n", ip4addr_ntoa(netif_ip4_addr(netif)));
-    logPrintf("net: MASK %s\n", ip4addr_ntoa(netif_ip4_netmask(netif)));
-    logPrintf("net: GW   %s\n", ip4addr_ntoa(netif_ip4_gw(netif)));
   }
 }

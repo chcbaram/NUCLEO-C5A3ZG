@@ -39,7 +39,7 @@ extern "C" {
 #define MX_LWIP_DATA_WORKER_STACK_SIZE          8192 /**< Stack size in bytes for the data worker thread. */
 #define MX_LWIP_DATA_WORKER_PRIORITY            25   /**< Data worker thread priority. */
 #define MX_LWIP_LINK_MONITOR_PERIOD_MS          100  /**< Link monitoring period in milliseconds. */
-#define MX_LWIP_LINK_MONITOR_STACK_SIZE         1024 /**< Stack size in bytes for the link monitor thread. */
+#define MX_LWIP_LINK_MONITOR_STACK_SIZE         2048 /**< Stack size in bytes for the link monitor thread. */
 #define MX_LWIP_LINK_MONITOR_PRIORITY           25   /**< Link monitor thread priority. */
 #define MX_LWIP_MAX_ETH_TX_BUFFERS              5    /**< Maximum number of Ethernet TX buffers. */
 #define MX_LWIP_ETH_GIGABIT_SUPPORT             0    /**< Disable gigabit support in ethernet interface. */
