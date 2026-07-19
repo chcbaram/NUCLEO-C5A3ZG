@@ -55,7 +55,7 @@ bool faultReset(const char *p_msg, uint32_t *p_stack)
 
     // TODO: 일단 SRAM에서 실행된 코드는 무시
     //
-    if (fault_log.REG_PC >= SRAM1_BASE && fault_log.REG_PC < (SRAM1_BASE + 640*1024))
+    if (fault_log.REG_PC >= SRAM1_BASE && fault_log.REG_PC < (SRAM1_BASE + (SRAM1_SIZE + SRAM2_SIZE)))
     {
       fault_log.magic_number = 0;
     }

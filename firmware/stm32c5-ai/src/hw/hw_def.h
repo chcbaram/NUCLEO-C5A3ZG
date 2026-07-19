@@ -13,7 +13,7 @@
 
 
 // #define _USE_HW_ASSERT
-// #define _USE_HW_FAULT
+#define _USE_HW_FAULT
 
 
 #define _USE_HW_LED

@@ -38,7 +38,7 @@ bool hwInit(void)
 
   rtcInit();
   resetInit();
-  // faultInit();
+  faultInit();
   // assertInit();
   // gpioInit();
 
