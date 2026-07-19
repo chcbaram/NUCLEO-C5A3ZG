@@ -6,6 +6,14 @@
 #include "lwip/netif.h"
 #include "lwip/netifapi.h"
 #include "lwip/ip4_addr.h"
+#include "lwip/apps/sntp.h"
+#include <time.h>
+
+
+// SNTP : UTC 기준 시각에 타임존 오프셋(KST = UTC+9) 적용 후 RTC 세팅
+//
+#define SNTP_TZ_OFFSET_SEC    (9 * 3600)
+#define SNTP_SERVER_NAME      "pool.ntp.org"
 
 
 static bool netInit(void);
@@ -22,6 +30,7 @@ MODULE_DEF(net)
 
 static struct netif          s_netif;
 static netif_ext_callback_t  s_netif_ext_cb;
+static bool                  s_sntp_started = false;
 
 
 
@@ -92,6 +101,19 @@ void netThread(void const *arg)
         logPrintf("net: IP   %s\n", ip4addr_ntoa(netif_ip4_addr(&s_netif)));
         logPrintf("net: MASK %s\n", ip4addr_ntoa(netif_ip4_netmask(&s_netif)));
         logPrintf("net: GW   %s\n", ip4addr_ntoa(netif_ip4_gw(&s_netif)));
+
+        // 최초 IP 획득 시 SNTP 시작 (raw API 는 core-lock 하에 호출)
+        //
+        if (s_sntp_started == false)
+        {
+          LOCK_TCPIP_CORE();
+          sntp_setoperatingmode(SNTP_OPMODE_POLL);
+          sntp_setservername(0, SNTP_SERVER_NAME);
+          sntp_init();
+          UNLOCK_TCPIP_CORE();
+          s_sntp_started = true;
+          logPrintf("sntp: started (%s)\n", SNTP_SERVER_NAME);
+        }
       }
       else
       {
@@ -122,4 +144,32 @@ void netExtCallback(struct netif *netif, netif_nsc_reason_t reason,
       netifapi_dhcp_stop(netif);
     }
   }
+}
+
+// lwIP SNTP 클라이언트가 시각 수신 시 호출(tcpip 스레드). sec = Unix(UTC) 초.
+//
+void sntpSetSystemTime(uint32_t sec, uint32_t usec)
+{
+  time_t    t = (time_t)sec + SNTP_TZ_OFFSET_SEC;
+  struct tm tmv;
+  rtc_date_t date;
+  rtc_time_t time;
+
+  (void)usec;
+
+  gmtime_r(&t, &tmv);
+
+  date.year  = (uint8_t)((tmv.tm_year + 1900) - 2000);
+  date.month = (uint8_t)(tmv.tm_mon + 1);
+  date.day   = (uint8_t)tmv.tm_mday;
+  time.hours   = (uint8_t)tmv.tm_hour;
+  time.minutes = (uint8_t)tmv.tm_min;
+  time.seconds = (uint8_t)tmv.tm_sec;
+
+  rtcSetDate(&date);
+  rtcSetTime(&time);
+
+  logPrintf("sntp: %04d-%02d-%02d %02d:%02d:%02d (KST)\n",
+            tmv.tm_year + 1900, date.month, date.day,
+            time.hours, time.minutes, time.seconds);
 }

@@ -54,13 +54,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* SNTP Client specific. (SNTP 사용 시 복원)
-#include "arch.h"
-void mx_lwip_sntp_set_system_time(u32_t sec, u32_t usec);
+/* SNTP Client (net 모듈의 sntpSetSystemTime 으로 시간 세팅) */
+#include <stdint.h>
+void sntpSetSystemTime(uint32_t sec, uint32_t usec);
 #define SNTP_SERVER_DNS                  1
-#define SNTP_SET_SYSTEM_TIME_US          mx_lwip_sntp_set_system_time
+#define SNTP_SET_SYSTEM_TIME_US          sntpSetSystemTime
 #define SNTP_UPDATE_DELAY                60000
-*/
 
 /*
    ------------------------------------
@@ -380,7 +379,7 @@ void mx_lwip_sntp_set_system_time(u32_t sec, u32_t usec);
   * The stack size value itself is platform-dependent, but is passed to
   * sys_thread_new() when the thread is created.
   */
-#define TCPIP_THREAD_STACKSIZE          (2048)
+#define TCPIP_THREAD_STACKSIZE          (3072)
 
 /**
   * TCPIP_THREAD_PRIO: The priority assigned to the main tcpip thread.
