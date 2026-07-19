@@ -37,7 +37,7 @@ bool hwInit(void)
   logPrintf("\n");
 
   rtcInit();
-  // resetInit();
+  resetInit();
   // faultInit();
   // assertInit();
   // gpioInit();

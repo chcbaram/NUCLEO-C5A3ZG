@@ -3,9 +3,12 @@
 #include "cli.h"
 
 #ifdef _USE_HW_RESET
+#include "stm32c5xx_ll_rcc.h"
 
 
+#if CLI_USE(HW_RESET)
 static void cliReset(cli_args_t *args);
+#endif
 
 
 static bool is_init = false;
@@ -13,15 +16,16 @@ static uint32_t reset_bits = 0;
 static uint32_t boot_mode = 0;
 
 
-static const char *reset_bit_str[] = 
+static const char *reset_bit_str[] =
   {
     "RESET_BIT_POWER",
     "RESET_BIT_PIN",
     "RESET_BIT_WDG",
     "RESET_BIT_SOFT",
+    "RESET_BIT_ETC",
   };
 
-static const char *mode_bit_str[] = 
+static const char *mode_bit_str[] =
   {
     "MODE_BIT_BOOT",
     "MODE_BIT_UPDATE",
@@ -35,28 +39,28 @@ bool resetInit(void)
 
 
 #if defined(HW_RESET_BOOT) && HW_RESET_BOOT > 0
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST) != RESET)
+  if (LL_RCC_IsActiveFlag_PINRST() != 0)
   {
    reset_bits |= (1<<RESET_BIT_PIN);
   }
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST) != RESET)
+  if (LL_RCC_IsActiveFlag_BORRST() != 0)
   {
    reset_bits |= (1<<RESET_BIT_POWER);
   }
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) != RESET)
+  if (LL_RCC_IsActiveFlag_IWDGRST() != 0)
   {
    reset_bits |= (1<<RESET_BIT_WDG);
   }
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) != RESET)
+  if (LL_RCC_IsActiveFlag_WWDGRST() != 0)
   {
    reset_bits |= (1<<RESET_BIT_WDG);
   }
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST) != RESET)
+  if (LL_RCC_IsActiveFlag_SFTRST() != 0)
   {
    reset_bits |= (1<<RESET_BIT_SOFT);
   }
 
-  __HAL_RCC_CLEAR_RESET_FLAGS();
+  HAL_RCC_ClearResetFlags();
 
   rtcSetReg(HW_RTC_RESET_BITS, reset_bits);
 #else
@@ -75,16 +79,18 @@ bool resetInit(void)
       logPrintf("     %s\n", reset_bit_str[i]);
     }
   }
-  for (int i=0; i<RESET_BIT_MAX; i++)
+  for (int i=0; i<MODE_BIT_MAX; i++)
   {
     if (boot_mode & (1<<i))
     {
       logPrintf("     %s\n", mode_bit_str[i]);
     }
-  }  
+  }
 
   is_init = true;
+#if CLI_USE(HW_RESET)
   cliAdd("reset", cliReset);
+#endif
 
   ret = is_init;
   return ret;
@@ -109,7 +115,7 @@ void resetToUpdate(void)
 
 void resetToReset(void)
 {
-  HAL_NVIC_SystemReset();
+  HAL_CORTEX_NVIC_SystemReset();
 }
 
 uint32_t resetGetBits(void)
@@ -134,6 +140,7 @@ uint32_t resetGetBootMode(void)
 }
 
 
+#if CLI_USE(HW_RESET)
 void cliReset(cli_args_t *args)
 {
   bool ret = false;
@@ -180,6 +187,7 @@ void cliReset(cli_args_t *args)
     cliPrintf("reset reset\n");
   }
 }
+#endif
 
 
 #endif
