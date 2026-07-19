@@ -34,6 +34,13 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
   src/lib/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure/*.c
   src/lib/FreeRTOS/Source/CMSIS_RTOS_V2/*.c
   src/lib/FreeRTOS/Source/portable/MemMang/heap_4.c
+
+  # lwIP (STM32 hal2, IPv4 only) - 비재귀 glob
+  src/lib/lwip/src/core/*.c
+  src/lib/lwip/src/core/ipv4/*.c
+  src/lib/lwip/src/api/*.c
+  src/lib/lwip/src/netif/ethernet.c
+  src/lib/lwip/ports/freertos/arch/*.c
 )
 
 # 하위폴더에 있는 파일까지 포함한다.
@@ -102,6 +109,12 @@ target_include_directories(${EXECUTABLE} PRIVATE
   src/lib/FreeRTOS/Source/include
   src/lib/FreeRTOS/Source/CMSIS_RTOS_V2
   src/lib/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure
+
+  # lwIP
+  src/lib/lwip/src/include
+  src/lib/lwip/ports/common
+  src/lib/lwip/ports/freertos
+  src/lib/lwip/port
 )
 
 target_compile_definitions(${EXECUTABLE} PRIVATE
