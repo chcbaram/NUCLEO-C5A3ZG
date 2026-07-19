@@ -41,6 +41,9 @@
 #define _USE_HW_RESET
 #define      HW_RESET_BOOT          1
 
+#define _USE_HW_ETH
+#define      HW_ETH_PHY_ADDR        0
+
 #define _USE_HW_UART
 #define      HW_UART_MAX_CH         1
 #define      HW_UART_CH_SWD         _DEF_UART1
@@ -72,6 +75,7 @@
 #define _USE_CLI_HW_USB             1
 #define _USE_CLI_HW_RTC             1
 #define _USE_CLI_HW_RESET           1
+#define _USE_CLI_HW_ETH             1
 
 
 // typedef enum

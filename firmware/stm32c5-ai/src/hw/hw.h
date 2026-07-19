@@ -19,6 +19,7 @@ extern "C" {
 #include "qbuffer.h"
 #include "cdc.h"
 #include "gpio.h"
+#include "eth/eth.h"
 #include "osal/thread.h"
 
 

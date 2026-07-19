@@ -41,6 +41,7 @@ bool hwInit(void)
   faultInit();
   assertInit();
   threadInit();
+  ethInit();
   // gpioInit();
 
   return true;
