@@ -66,6 +66,22 @@ void assert_failed(uint8_t* file, uint32_t line)
   assertProcessFailed(file, line, NULL, ASSERT_TYPE_STM32);
 }
 
+// 신형 STM32C5 HAL 의 파라미터/상태 검사 콜백 (USE_FULL_ASSERT 시 HAL 이 호출)
+//
+#if defined(USE_ASSERT_DBG_PARAM)
+void assert_dbg_param_failed(uint8_t *file, uint32_t line)
+{
+  assertProcessFailed(file, line, NULL, ASSERT_TYPE_STM32);
+}
+#endif
+
+#if defined(USE_ASSERT_DBG_STATE)
+void assert_dbg_state_failed(uint8_t *file, uint32_t line)
+{
+  assertProcessFailed(file, line, NULL, ASSERT_TYPE_STM32);
+}
+#endif
+
 void assertProcessFailed(uint8_t* file, uint32_t line, uint8_t *expr, AssertType_t type)
 {
   if (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk)  

@@ -97,6 +97,7 @@ target_compile_definitions(${EXECUTABLE} PRIVATE
   -DSTM32C5A3xx
   -DUSE_HAL_DRIVER
   -DUSE_EXTERNAL_ENV
+  -DUSE_FULL_ASSERT
   )
 
 target_compile_options(${EXECUTABLE} PRIVATE
