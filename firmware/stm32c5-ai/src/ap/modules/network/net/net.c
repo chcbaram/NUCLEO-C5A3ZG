@@ -169,7 +169,14 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec)
   rtcSetDate(&date);
   rtcSetTime(&time);
 
-  logPrintf("sntp: %04d-%02d-%02d %02d:%02d:%02d (KST)\n",
-            tmv.tm_year + 1900, date.month, date.day,
-            time.hours, time.minutes, time.seconds);
+  // 로그는 최초 동기 시 1회만 (RTC 는 이후에도 조용히 갱신)
+  //
+  static bool logged = false;
+  if (logged == false)
+  {
+    logged = true;
+    logPrintf("sntp: %04d-%02d-%02d %02d:%02d:%02d (KST)\n",
+              tmv.tm_year + 1900, date.month, date.day,
+              time.hours, time.minutes, time.seconds);
+  }
 }

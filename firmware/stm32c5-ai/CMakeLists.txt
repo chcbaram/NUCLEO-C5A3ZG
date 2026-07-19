@@ -41,6 +41,7 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
   src/lib/lwip/src/api/*.c
   src/lib/lwip/src/netif/ethernet.c
   src/lib/lwip/src/apps/sntp/*.c
+  src/lib/lwip/src/apps/lwiperf/*.c
   src/lib/lwip/ports/freertos/arch/*.c
   src/lib/lwip/interfaces/ethernet/*.c
   src/lib/lwip/port/*.c

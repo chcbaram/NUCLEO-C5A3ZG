@@ -82,7 +82,8 @@ __attribute__((weak)) int _write(int file, char *ptr, int len)
 {
   (void)file;
 
-  // uartWrite(HW_UART_CH_SWD, (uint8_t *)ptr, len);
+  // printf 등 표준출력을 로그/콘솔 UART 로 보낸다 (lwIP LWIP_PLATFORM_ASSERT 메시지 포함)
+  uartWrite(HW_UART_CH_CLI, (uint8_t *)ptr, len);
   return len;
 }
 
