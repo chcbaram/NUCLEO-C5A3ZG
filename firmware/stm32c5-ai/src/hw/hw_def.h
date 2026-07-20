@@ -47,8 +47,9 @@
 #define      HW_ETH_PHY_ADDR        0
 
 #define _USE_HW_UART
-#define      HW_UART_MAX_CH         1
+#define      HW_UART_MAX_CH         2
 #define      HW_UART_CH_SWD         _DEF_UART1
+#define      HW_UART_CH_NET         _DEF_UART2   /* 가상 채널: cli_net 텔넷 소켓 */
 #define      HW_UART_CH_CLI         HW_UART_CH_SWD
 
 

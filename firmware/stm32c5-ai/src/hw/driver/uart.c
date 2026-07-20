@@ -24,6 +24,8 @@ typedef struct
 
   uint32_t rx_cnt;
   uint32_t tx_cnt;
+
+  uart_driver_t *p_driver;   /* NULL 이면 HW UART, 아니면 커스텀 드라이버(cli_net 등) */
 } uart_tbl_t;
 
 typedef struct
@@ -55,7 +57,7 @@ const static uart_hw_t uart_hw_tbl[UART_MAX_CH] =
 {
   {"USART1 SWD   ", HAL_UART2, &hUSART2, false},
 #if HW_UART_MAX_CH >= 2
-  {"USB CD       ", NULL,      NULL,     false},
+  {"NET TELNET   ", HAL_UART2, NULL,     false},   /* 가상채널: p_driver(cli_net) 로 입출력, HW 미사용 */
 #endif
 };
 
@@ -67,7 +69,8 @@ bool uartInit(void)
     uart_tbl[i].is_open = false;
     uart_tbl[i].baud = 57600;
     uart_tbl[i].rx_cnt = 0;
-    uart_tbl[i].tx_cnt = 0;    
+    uart_tbl[i].tx_cnt = 0;
+    uart_tbl[i].p_driver = NULL;
   }
 
   is_init = true;
@@ -95,6 +98,13 @@ bool uartOpen(uint8_t ch, uint32_t baud)
 
 
   if (ch >= UART_MAX_CH) return false;
+
+  if (uart_tbl[ch].p_driver != NULL)
+  {
+    uart_tbl[ch].baud    = baud;
+    uart_tbl[ch].is_open = uart_tbl[ch].p_driver->open(baud);
+    return uart_tbl[ch].is_open;
+  }
 
   if (uart_tbl[ch].is_open == true && uart_tbl[ch].baud == baud)
   {
@@ -161,8 +171,21 @@ bool uartClose(uint8_t ch)
 {
   if (ch >= UART_MAX_CH) return false;
 
+  if (uart_tbl[ch].p_driver != NULL)
+  {
+    uart_tbl[ch].p_driver->close();
+  }
+
   uart_tbl[ch].is_open = false;
 
+  return true;
+}
+
+bool uartSetDriver(uint8_t ch, uart_driver_t *p_driver)
+{
+  if (ch >= UART_MAX_CH) return false;
+
+  uart_tbl[ch].p_driver = p_driver;
   return true;
 }
 
@@ -239,6 +262,12 @@ uint32_t uartAvailable(uint8_t ch)
 {
   uint32_t ret = 0;
 
+  if (ch >= UART_MAX_CH) return 0;
+
+  if (uart_tbl[ch].p_driver != NULL)
+  {
+    return uart_tbl[ch].p_driver->available();
+  }
 
   switch(ch)
   {
@@ -261,6 +290,12 @@ bool uartFlush(uint8_t ch)
 {
   uint32_t pre_time;
 
+  if (ch >= UART_MAX_CH) return false;
+
+  if (uart_tbl[ch].p_driver != NULL)
+  {
+    return uart_tbl[ch].p_driver->flush();
+  }
 
   pre_time = millis();
   while(uartAvailable(ch))
@@ -279,6 +314,14 @@ uint8_t uartRead(uint8_t ch)
 {
   uint8_t ret = 0;
 
+  if (ch >= UART_MAX_CH) return 0;
+
+  if (uart_tbl[ch].p_driver != NULL)
+  {
+    ret = uart_tbl[ch].p_driver->read();
+    uart_tbl[ch].rx_cnt++;
+    return ret;
+  }
 
   switch(ch)
   {
@@ -301,6 +344,14 @@ uint32_t uartWrite(uint8_t ch, uint8_t *p_data, uint32_t length)
 {
   uint32_t ret = 0;
 
+  if (ch >= UART_MAX_CH) return 0;
+
+  if (uart_tbl[ch].p_driver != NULL)
+  {
+    ret = uart_tbl[ch].p_driver->write(p_data, length);
+    uart_tbl[ch].tx_cnt += ret;
+    return ret;
+  }
 
   switch(ch)
   {
