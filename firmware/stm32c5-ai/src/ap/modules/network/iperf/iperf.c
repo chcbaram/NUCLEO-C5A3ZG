@@ -8,11 +8,6 @@
 #include "lwip/ip_addr.h"
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
-#include "lwip/stats.h"
-
-/* eth_interface_freertos.c 진단 카운터 */
-extern volatile uint32_t lwip_hw_event_count;
-extern volatile uint32_t lwip_rx_event_drop_count;
 
 
 static bool iperfInit(void);
@@ -270,12 +265,6 @@ void cliIperf(cli_args_t *args)
       uint32_t t0      = t_start;
       uint32_t bytes   = 0;
       uint32_t total   = 0;
-      uint32_t drop0   = lwip_rx_event_drop_count;
-      uint32_t evt0    = lwip_hw_event_count;
-      uint32_t xmit0   = lwip_stats.tcp.xmit;
-      uint32_t recv0   = lwip_stats.tcp.recv;
-      uint32_t tdrop0  = lwip_stats.tcp.drop;
-      uint32_t tmem0   = lwip_stats.tcp.memerr;
 
       while (cliKeepLoop())
       {
@@ -295,15 +284,10 @@ void cliIperf(cli_args_t *args)
         if ((millis() - t0) >= 1000)
         {
           uint32_t kbps = (bytes * 8) / (millis() - t0);
-          cliPrintf("iperf tcp tx: %lu.%02lu Mbps  | hw_evt +%lu, drop +%lu (total drop %lu)\n",
-                    (unsigned long)(kbps / 1000), (unsigned long)((kbps % 1000) / 10),
-                    (unsigned long)(lwip_hw_event_count - evt0),
-                    (unsigned long)(lwip_rx_event_drop_count - drop0),
-                    (unsigned long)lwip_rx_event_drop_count);
+          cliPrintf("iperf tcp tx: %lu.%02lu Mbps\n",
+                    (unsigned long)(kbps / 1000), (unsigned long)((kbps % 1000) / 10));
           t0    = millis();
           bytes = 0;
-          drop0 = lwip_rx_event_drop_count;
-          evt0  = lwip_hw_event_count;
         }
       }
 
@@ -312,17 +296,9 @@ void cliIperf(cli_args_t *args)
       {
         uint32_t dt   = millis() - t_start;
         uint32_t kbps = (dt > 0) ? (total / dt) * 8 : 0;  // bytes/ms*8 근사
-        uint32_t segs = total / 1460;                     // 보낸 데이터 세그먼트 수(근사)
         cliPrintf("iperf tcp tx done: %lu bytes, %lu ms, ~%lu.%02lu Mbps\n",
                   (unsigned long)total, (unsigned long)dt,
                   (unsigned long)(kbps / 1000), (unsigned long)((kbps % 1000) / 10));
-        cliPrintf("tcp stats: data_segs~%lu | xmit +%lu recv +%lu drop +%lu memerr +%lu\n",
-                  (unsigned long)segs,
-                  (unsigned long)(lwip_stats.tcp.xmit   - xmit0),
-                  (unsigned long)(lwip_stats.tcp.recv   - recv0),
-                  (unsigned long)(lwip_stats.tcp.drop   - tdrop0),
-                  (unsigned long)(lwip_stats.tcp.memerr - tmem0));
-        cliPrintf("  => xmit >> data_segs 이면 재전송 폭주, xmit~=data_segs 이면 순수 cwnd 정체\n");
       }
     }
     ret = true;

@@ -147,7 +147,7 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
   * MEM_SIZE: the size of the heap memory. If the application will send
   * a lot of data that needs to be copied, this must be set high.
   */
-#define MEM_SIZE                        (16 * 1024)
+#define MEM_SIZE                        (24 * 1024)
 
 /*
    ------------------------------------------------
@@ -179,7 +179,7 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
   * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
   * (requires the LWIP_TCP option)
   */
-#define MEMP_NUM_TCP_SEG                32
+#define MEMP_NUM_TCP_SEG                48
 
  
 /**
@@ -191,7 +191,7 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
 /**
   * PBUF_POOL_SIZE: the number of buffers in the general pbuf pool. Used for reception buffers.
   */
-#define PBUF_POOL_SIZE                  48
+#define PBUF_POOL_SIZE                  40
 
 /*
    ---------------------------------
@@ -292,7 +292,7 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
   * TCP_SND_BUF: TCP sender buffer space (bytes).
   * To achieve good performance, this must be at least 2 * TCP_MSS.
   */
-#define TCP_SND_BUF             (8 * TCP_MSS)
+#define TCP_SND_BUF             (12 * TCP_MSS)
 
 /**
   * TCP_SND_QUEUELEN: TCP sender buffer space (pbufs). This must be at least

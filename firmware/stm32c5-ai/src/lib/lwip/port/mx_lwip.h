@@ -34,7 +34,7 @@ extern "C" {
 /* Exported constants --------------------------------------------------------*/
 /* Exported macros -----------------------------------------------------------*/
 #define MX_LWIP_MAX_INTERFACE_NB                10   /**< Maximum number of network interfaces. */
-#define MX_LWIP_DATA_WORKER_QUEUE_SIZE          20   /**< Size of the message queue. */
+#define MX_LWIP_DATA_WORKER_QUEUE_SIZE          32   /**< Size of the message queue. TX 버스트(~SND_BUF/MSS 개)+HW이벤트를 한 번에 담아 tcpip<->worker 블록을 줄이기 위해 20->32. */
 #define MX_LWIP_DATA_WORKER_QUEUE_TX_TIMEOUT_MS 1000 /**< Timeout for low-level output in the message queue. */
 #define MX_LWIP_DATA_WORKER_STACK_SIZE          8192 /**< Stack size in bytes for the data worker thread. */
 #define MX_LWIP_DATA_WORKER_PRIORITY            25   /**< Data worker thread priority. */

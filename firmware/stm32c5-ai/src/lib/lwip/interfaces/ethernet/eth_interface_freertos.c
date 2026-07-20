@@ -158,10 +158,6 @@ static volatile BaseType_t RunDataWorkerThread = pdTRUE;
   */
 static volatile BaseType_t RunLinkMonitorThread = pdTRUE;
 
-/* 진단용 카운터 (iperf.c 에서 extern 으로 읽음) */
-volatile uint32_t lwip_hw_event_count      = 0;  /* data_event_cb 총 호출 수 */
-volatile uint32_t lwip_rx_event_drop_count = 0;  /* ISR 큐 풀로 버려진 HW 이벤트 수 */
-
 
 /* Private function prototypes -----------------------------------------------*/
 /**
@@ -688,7 +684,10 @@ void data_worker_thread(void *arg)
 
           if (hal_status == HAL_BUSY)
           {
-            HAL_ETH_ExecDataHandler(p_netif_context->p_hardware->p_eth, p_netif_context->tx_channel_id, &output_channel_mask);
+            /* TX 링이 가득 참: TX 완료뿐 아니라 RX(ACK) 채널도 함께 처리해
+               버스트 도중 ACK 처리가 밀리는 head-of-line blocking 을 완화한다. */
+            HAL_ETH_ExecDataHandler(p_netif_context->p_hardware->p_eth,
+              p_netif_context->tx_channel_id | p_netif_context->rx_channel_id, &output_channel_mask);
           }
         } while (hal_status == HAL_BUSY);
 
@@ -781,12 +780,16 @@ void data_event_cb(hal_eth_handle_t *p_eth, uint32_t channel)
   message.netif = NULL;
   message.p_eth = p_eth;
 
-  /* just send a message to the data worker thread that will do the actual processing */
-  lwip_hw_event_count++;
-  if (xQueueSendFromISR(data_worker_queue, &message, &xHigherPriorityTaskWoken1) != pdTRUE)
+  /* RX(ACK) 이벤트는 큐 front 로 넣어 앞서 쌓인 TX-complete/제출 메시지보다
+     먼저 처리되게 한다 -> 창을 푸는 ACK 의 head-of-line blocking 완화, TX 처리량 향상.
+     (RX 이벤트 순서가 바뀌어도 ExecDataHandler 가 RX 링을 순서대로 비우므로 안전) */
+  if ((channel & HAL_ETH_RX_CHANNEL_ALL) != 0U)
   {
-    /* 큐가 가득 차 이 HW 이벤트를 버림 -> RX(ACK)/TX 이벤트 처리 지연 */
-    lwip_rx_event_drop_count++;
+    xQueueSendToFrontFromISR(data_worker_queue, &message, &xHigherPriorityTaskWoken1);
+  }
+  else
+  {
+    xQueueSendToBackFromISR(data_worker_queue, &message, &xHigherPriorityTaskWoken1);
   }
   vTaskNotifyGiveFromISR(data_worker_task, &xHigherPriorityTaskWoken2);
   portYIELD_FROM_ISR((xHigherPriorityTaskWoken1) || (xHigherPriorityTaskWoken2));
