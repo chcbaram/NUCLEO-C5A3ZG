@@ -7,6 +7,7 @@
 #include "lwip/netifapi.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/apps/sntp.h"
+#include "eth/eth.h"
 #include <time.h>
 
 
@@ -20,6 +21,7 @@ static bool netInit(void);
 static void netThread(void const *arg);
 static void netExtCallback(struct netif *netif, netif_nsc_reason_t reason,
                            const netif_ext_callback_args_t *p_args);
+static void cliNet(cli_args_t *args);
 
 MODULE_DEF(net)
 {
@@ -41,7 +43,9 @@ bool netInit(void)
 
   ret = threadCreate("net", netThread, NULL, _HW_DEF_THREAD_NET_PRI, _HW_DEF_THREAD_NET_STACK);
 
-  logPrintf("[%s] netInit()\n", ret ? "OK":"NG");
+  cliAdd("net", cliNet);
+
+  logPrintf("[%s] netInit()\n", ret ? "OK":"E_");
   return ret;
 }
 
@@ -143,6 +147,44 @@ void netExtCallback(struct netif *netif, netif_nsc_reason_t reason,
     {
       netifapi_dhcp_stop(netif);
     }
+  }
+}
+
+// 협상된 링크 속도/듀플렉스 + IP 상태 조회.
+// TX 처리량이 붕괴할 때 half-duplex / 저속 협상 여부를 확인하는 진단용.
+//
+void cliNet(cli_args_t *args)
+{
+  bool ret = false;
+
+  if (args->argc == 1 && args->isStr(0, "info"))
+  {
+    eth_link_t link;
+    bool up = (ethGetLink(&link) == true) && (link.is_link == true);
+
+    cliPrintf("link   : %s\n", up ? "up" : "down");
+    if (up)
+    {
+      cliPrintf("speed  : %d Mbps\n", (int)link.speed);
+      cliPrintf("duplex : %s\n", link.is_full_duplex ? "full" : "half");
+      cliPrintf("autoneg: %s\n", link.is_autoneg ? "done" : "no");
+
+      // TX 성능 붕괴의 전형적 원인을 바로 짚어준다
+      if (link.is_full_duplex == false)
+        cliPrintf("  !! HALF DUPLEX -> TX 붕괴 원인. PC NIC/스위치 duplex 확인\n");
+      if (link.speed < 100)
+        cliPrintf("  !! %d Mbps (<100) -> 링크 협상 확인\n", (int)link.speed);
+    }
+
+    cliPrintf("ip     : %s\n", ip4addr_ntoa(netif_ip4_addr(&s_netif)));
+    cliPrintf("mask   : %s\n", ip4addr_ntoa(netif_ip4_netmask(&s_netif)));
+    cliPrintf("gw     : %s\n", ip4addr_ntoa(netif_ip4_gw(&s_netif)));
+    ret = true;
+  }
+
+  if (ret == false)
+  {
+    cliPrintf("net info   # 링크 속도/듀플렉스/IP 상태\n");
   }
 }
 

@@ -149,6 +149,16 @@ static TaskHandle_t link_monitor_task = NULL;
 static QueueHandle_t data_worker_queue = NULL;
 
 /**
+  * @brief Ethernet 인터페이스 통계 카운터.
+  *
+  * RX 오버로드 시 assert 대신 누적된다. 외부에서는 lwip_eth_interface_get_stats()
+  * 로만 접근한다(캡슐화).
+  *   - rx_drop_mbox : tcpip_input() ERR_MEM (tcpip mailbox / MSG_INPKT 고갈)
+  *   - rx_drop_pbuf : rx_allocate_cb의 pbuf_alloc(PBUF_POOL) 실패
+  */
+static volatile lwip_eth_interface_stats_t s_eth_stats = {0};
+
+/**
   * @brief Flag to control the running state of the data worker thread.
   */
 static volatile BaseType_t RunDataWorkerThread = pdTRUE;
@@ -718,8 +728,11 @@ void rx_allocate_cb(hal_eth_handle_t *p_eth, uint32_t channel,
   }
   else
   {
+    /* PBUF_POOL 고갈 = RX 오버로드. HAL은 NULL 버퍼를 만나면 해당 디스크립터
+       할당을 멈추고(MAC이 패킷 드롭) 다음 기회에 다시 요청하므로 crash 없이
+       안전하다. assert 대신 드롭 카운터만 올린다. */
     *p_rx_buffer = NULL;
-    LWIP_ASSERT("pbuf_alloc(PBUF_POOL) != NULL", (p != NULL));
+    s_eth_stats.rx_drop_pbuf++;
   }
 }
 
@@ -855,24 +868,25 @@ hal_status_t rx_complete_cb(hal_eth_handle_t *p_eth, uint32_t channel,
       if (p_netif != NULL)
       {
         lwip_err = p_netif->input(first_pbuf, p_netif);
-        LWIP_ASSERT("rx_complete_cb() p_netif->input() lwip_err == ERR_OK", lwip_err == ERR_OK);
+        if (lwip_err != ERR_OK)
+        {
+          /* tcpip_input() 실패(ERR_MEM): tcpip mailbox / MEMP_TCPIP_MSG_INPKT
+             고갈 = RX 오버로드. tcpip_input()은 실패 시 pbuf를 free하지 않고
+             호출자에게 소유권을 남기므로 여기서 직접 free한다. UDP 오버로드
+             시 패킷 드롭은 정상 동작이므로 assert로 죽지 않고 드롭 처리한다. */
+          pbuf_free(first_pbuf);
+          s_eth_stats.rx_drop_mbox++;
+        }
       }
       else
       {
         /* no netif found, free the pbuf chain */
         pbuf_free(first_pbuf);
-        lwip_err = ERR_OK;
       }
 
-      if (lwip_err != ERR_OK)
-      {
-        hal_status = HAL_BUSY;
-      }
-      else
-      {
-        /* Remove first pbuf entry in table */
-        first_pbuf_table[channel_idx] = NULL;
-      }
+      /* 성공/드롭/무netif 모두 first_pbuf는 소비(또는 free)되었으므로 엔트리 정리.
+         hal_status는 HAL_OK 유지 → HAL이 RX 디스크립터를 정상 반환하게 한다. */
+      first_pbuf_table[channel_idx] = NULL;
     }
   }
 
@@ -1303,4 +1317,20 @@ void lwip_eth_interface_link_monitor_event_notify_from_isr(void)
     vTaskNotifyGiveFromISR(link_monitor_task, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+}
+
+void lwip_eth_interface_get_stats(lwip_eth_interface_stats_t *p_stats)
+{
+  if (p_stats != NULL)
+  {
+    /* 카운터는 32-bit 정렬 접근이라 tearing 없이 스냅샷 가능 */
+    p_stats->rx_drop_mbox = s_eth_stats.rx_drop_mbox;
+    p_stats->rx_drop_pbuf = s_eth_stats.rx_drop_pbuf;
+  }
+}
+
+void lwip_eth_interface_clear_stats(void)
+{
+  s_eth_stats.rx_drop_mbox = 0;
+  s_eth_stats.rx_drop_pbuf = 0;
 }

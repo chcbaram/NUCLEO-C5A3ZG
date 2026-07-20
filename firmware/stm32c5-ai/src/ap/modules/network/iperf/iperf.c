@@ -8,6 +8,7 @@
 #include "lwip/ip_addr.h"
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
+#include "eth_interface_freertos.h"
 
 
 static bool iperfInit(void);
@@ -30,6 +31,7 @@ MODULE_DEF(iperf)
 // 서버 리스너 핸들만 추적한다.
 //
 static void          *s_server  = NULL;
+static void          *s_client  = NULL;
 static struct udp_pcb *s_udp_pcb = NULL;
 
 
@@ -124,13 +126,19 @@ void cliIperf(cli_args_t *args)
     if (ipaddr_aton(args->getStr(1), &remote))
     {
       LOCK_TCPIP_CORE();
-      lwiperf_start_tcp_client_default(&remote, iperfReportFn, NULL);
+      if (s_client != NULL)
+        lwiperf_abort(s_client);   // 이전 미완료/누수 세션 정리 (리스트 오염 방지)
+      s_client = lwiperf_start_tcp_client_default(&remote, iperfReportFn, NULL);
       UNLOCK_TCPIP_CORE();
 
       cliPrintf("iperf TCP client -> %s  (PC: iperf -s)\n", args->getStr(1));
       cliPrintf("press any key to stop...\n");
       while (cliKeepLoop())
         delay(50);
+
+      LOCK_TCPIP_CORE();
+      if (s_client != NULL) { lwiperf_abort(s_client); s_client = NULL; }
+      UNLOCK_TCPIP_CORE();
       cliPrintf("iperf client done\n");
     }
     else
@@ -155,6 +163,9 @@ void cliIperf(cli_args_t *args)
     }
     UNLOCK_TCPIP_CORE();
 
+    /* 이번 세션 드롭 통계를 위해 카운터 리셋 */
+    lwip_eth_interface_clear_stats();
+
     cliPrintf("iperf UDP sink on :%d  (PC: iperf -c <board_ip> -u -b 50M)\n", LWIPERF_TCP_PORT_DEFAULT);
     cliPrintf("press any key to stop...\n");
     while (cliKeepLoop())
@@ -163,7 +174,12 @@ void cliIperf(cli_args_t *args)
     LOCK_TCPIP_CORE();
     if (s_udp_pcb != NULL) { udp_remove(s_udp_pcb); s_udp_pcb = NULL; }
     UNLOCK_TCPIP_CORE();
+
+    lwip_eth_interface_stats_t stats;
+    lwip_eth_interface_get_stats(&stats);
     cliPrintf("iperf udp stopped\n");
+    cliPrintf("  rx drop (mbox/msg) : %lu\n", (unsigned long)stats.rx_drop_mbox);
+    cliPrintf("  rx drop (pbuf pool): %lu\n", (unsigned long)stats.rx_drop_pbuf);
     ret = true;
   }
 
@@ -304,6 +320,17 @@ void cliIperf(cli_args_t *args)
     ret = true;
   }
 
+  // RX 드롭 통계 조회
+  if (args->argc == 1 && args->isStr(0, "info"))
+  {
+    lwip_eth_interface_stats_t stats;
+    lwip_eth_interface_get_stats(&stats);
+    cliPrintf("eth rx stats\n");
+    cliPrintf("  rx drop (mbox/msg) : %lu\n", (unsigned long)stats.rx_drop_mbox);
+    cliPrintf("  rx drop (pbuf pool): %lu\n", (unsigned long)stats.rx_drop_pbuf);
+    ret = true;
+  }
+
   if (ret == false)
   {
     cliPrintf("iperf server          # TCP RX (PC: iperf -c <board_ip>)\n");
@@ -311,6 +338,7 @@ void cliIperf(cli_args_t *args)
     cliPrintf("iperf tcptx [pc_ip]   # TCP TX (PC: python3 test/tcp_sink.py)\n");
     cliPrintf("iperf udprx           # UDP RX (PC: iperf -c <board_ip> -u -b 50M)\n");
     cliPrintf("iperf udptx [pc_ip]   # UDP TX (PC: iperf -s -u)\n");
+    cliPrintf("iperf info            # RX 드롭 통계 조회\n");
     cliPrintf("(press any key to stop a running test)\n");
   }
 }

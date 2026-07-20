@@ -131,7 +131,7 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
  * is busy, at the cost of additional RAM.
  * Typical values: 8-64 depending on link speed and memory size.
  */
-#define MEMP_NUM_TCPIP_MSG_INPKT        16
+#define MEMP_NUM_TCPIP_MSG_INPKT        64  /* RX 오버로드 시 tcpip_thread 인입 여유 (~40B/개, +~2KB) */
 
 /**
   * MEM_ALIGNMENT: must be set to the alignment of the CPU
@@ -393,9 +393,9 @@ void sntpSetSystemTime(uint32_t sec, uint32_t usec);
   * The queue size value itself is platform-dependent, but is passed to
   * sys_mbox_new() when tcpip_init is called.
   */
-#define TCPIP_MBOX_SIZE                 20
+#define TCPIP_MBOX_SIZE                 64  /* 포인터 큐, 4B/개 (+~176B). MSG_INPKT와 균형 */
 
-#define DEFAULT_UDP_RECVMBOX_SIZE       10
+#define DEFAULT_UDP_RECVMBOX_SIZE       64  /* iperf UDP sink 소켓 수신 여유, 4B/개 (+~216B/소켓) */
 #define DEFAULT_TCP_RECVMBOX_SIZE       20
 #define DEFAULT_ACCEPTMBOX_SIZE         10
 

@@ -843,6 +843,11 @@ lwiperf_abort(void *lwiperf_session)
       i = i->next;
       if (last != NULL) {
         last->next = i;
+      } else {
+        /* head 노드를 제거하는 경우 전역 리스트 head 갱신 (원본 누락 버그).
+           빠뜨리면 lwiperf_all_connections 가 freed 메모리를 가리켜(dangling)
+           다음 list_add/remove 시 리스트가 손상되고 "duplicate entry" assert 발생. */
+        lwiperf_all_connections = i;
       }
       LWIPERF_FREE(lwiperf_state_tcp_t, dealloc); /* @todo: type? */
     } else {

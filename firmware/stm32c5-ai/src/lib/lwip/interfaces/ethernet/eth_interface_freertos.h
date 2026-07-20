@@ -60,6 +60,18 @@ typedef struct lwip_eth_interface_context_s
   lwip_eth_interface_hardware_t* p_hardware;/**< Pointer to associated hardware abstraction. */
 } lwip_eth_interface_netif_context_t;
 
+/**
+ * @brief Ethernet 인터페이스 통계.
+ *
+ * RX 오버로드 시 assert 대신 누적되는 드롭 카운터. 향후 TX 통계 등
+ * 필드를 추가해도 getter API는 그대로 유지된다.
+ */
+typedef struct
+{
+  uint32_t rx_drop_mbox;   /**< tcpip mailbox/msg 고갈 드롭 (rx_complete_cb). */
+  uint32_t rx_drop_pbuf;   /**< PBUF_POOL 고갈 드롭 (rx_allocate_cb). */
+} lwip_eth_interface_stats_t;
+
 /* Exported constants --------------------------------------------------------*/
 /* Exported macros -----------------------------------------------------------*/
 /* Exported variables --------------------------------------------------------*/
@@ -110,6 +122,17 @@ err_t lwip_eth_interface_low_level_output(struct netif *netif, struct pbuf *p);
  * This function is safe to call from ISR context.
  */
 void lwip_eth_interface_link_monitor_event_notify_from_isr(void);
+
+/**
+ * @brief 현재 Ethernet 인터페이스 통계를 구조체로 가져온다.
+ * @param p_stats 통계를 채울 대상 구조체 포인터 (NULL 이면 무시).
+ */
+void lwip_eth_interface_get_stats(lwip_eth_interface_stats_t *p_stats);
+
+/**
+ * @brief Ethernet 인터페이스 통계 카운터를 모두 0으로 초기화한다.
+ */
+void lwip_eth_interface_clear_stats(void);
 
 #ifdef __cplusplus
 }
