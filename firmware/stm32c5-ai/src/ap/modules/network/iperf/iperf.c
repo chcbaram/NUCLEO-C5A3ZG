@@ -6,6 +6,13 @@
 #include "lwip/pbuf.h"
 #include "lwip/sys.h"
 #include "lwip/ip_addr.h"
+#include "lwip/sockets.h"
+#include "lwip/inet.h"
+#include "lwip/stats.h"
+
+/* eth_interface_freertos.c 진단 카운터 */
+extern volatile uint32_t lwip_hw_event_count;
+extern volatile uint32_t lwip_rx_event_drop_count;
 
 
 static bool iperfInit(void);
@@ -222,10 +229,110 @@ void cliIperf(cli_args_t *args)
     ret = true;
   }
 
+  // 순수 TCP TX 블래스터 (BSD 소켓, RAM 데이터, lwiperf 미사용)
+  //   PC: python3 test/tcp_sink.py [port]
+  // lwiperf 클라이언트와 달리 iperf2 프로토콜/FLASH 송신 버퍼를 쓰지 않으므로
+  // 보드 TCP TX 성능을 순수하게 측정한다.
+  //
+  if (args->argc >= 2 && args->isStr(0, "tcptx"))
+  {
+    static uint8_t     tx_buf[8192];   // .bss RAM (FLASH 아님 -> DMA OK), 한 번에 크게 write
+    struct sockaddr_in dst;
+    int                sock;
+    int                one  = 1;
+    int                port = (args->argc >= 3) ? (int)args->getData(2) : LWIPERF_TCP_PORT_DEFAULT;
+
+    sock = lwip_socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0)
+    {
+      cliPrintf("socket() fail\n");
+      return;
+    }
+
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family      = AF_INET;
+    dst.sin_port        = lwip_htons(port);
+    dst.sin_addr.s_addr = ipaddr_addr(args->getStr(1));
+
+    cliPrintf("connecting to %s:%d ...\n", args->getStr(1), port);
+    if (lwip_connect(sock, (struct sockaddr *)&dst, sizeof(dst)) != 0)
+    {
+      cliPrintf("connect fail (PC에서 tcp_sink.py 실행 중인가?)\n");
+      lwip_close(sock);
+      return;
+    }
+
+    lwip_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));  // Nagle off
+
+    cliPrintf("connected. sending (RAM, no lwiperf)...  press any key to stop\n");
+    {
+      uint32_t t_start = millis();
+      uint32_t t0      = t_start;
+      uint32_t bytes   = 0;
+      uint32_t total   = 0;
+      uint32_t drop0   = lwip_rx_event_drop_count;
+      uint32_t evt0    = lwip_hw_event_count;
+      uint32_t xmit0   = lwip_stats.tcp.xmit;
+      uint32_t recv0   = lwip_stats.tcp.recv;
+      uint32_t tdrop0  = lwip_stats.tcp.drop;
+      uint32_t tmem0   = lwip_stats.tcp.memerr;
+
+      while (cliKeepLoop())
+      {
+        int n = lwip_send(sock, tx_buf, sizeof(tx_buf), 0);
+
+        if (n > 0)
+        {
+          bytes += n;
+          total += n;
+        }
+        else
+        {
+          cliPrintf("send() -> %d, 연결 종료\n", n);
+          break;
+        }
+
+        if ((millis() - t0) >= 1000)
+        {
+          uint32_t kbps = (bytes * 8) / (millis() - t0);
+          cliPrintf("iperf tcp tx: %lu.%02lu Mbps  | hw_evt +%lu, drop +%lu (total drop %lu)\n",
+                    (unsigned long)(kbps / 1000), (unsigned long)((kbps % 1000) / 10),
+                    (unsigned long)(lwip_hw_event_count - evt0),
+                    (unsigned long)(lwip_rx_event_drop_count - drop0),
+                    (unsigned long)lwip_rx_event_drop_count);
+          t0    = millis();
+          bytes = 0;
+          drop0 = lwip_rx_event_drop_count;
+          evt0  = lwip_hw_event_count;
+        }
+      }
+
+      lwip_close(sock);
+
+      {
+        uint32_t dt   = millis() - t_start;
+        uint32_t kbps = (dt > 0) ? (total / dt) * 8 : 0;  // bytes/ms*8 근사
+        uint32_t segs = total / 1460;                     // 보낸 데이터 세그먼트 수(근사)
+        cliPrintf("iperf tcp tx done: %lu bytes, %lu ms, ~%lu.%02lu Mbps\n",
+                  (unsigned long)total, (unsigned long)dt,
+                  (unsigned long)(kbps / 1000), (unsigned long)((kbps % 1000) / 10));
+        cliPrintf("tcp stats: data_segs~%lu | xmit +%lu recv +%lu drop +%lu memerr +%lu\n",
+                  (unsigned long)segs,
+                  (unsigned long)(lwip_stats.tcp.xmit   - xmit0),
+                  (unsigned long)(lwip_stats.tcp.recv   - recv0),
+                  (unsigned long)(lwip_stats.tcp.drop   - tdrop0),
+                  (unsigned long)(lwip_stats.tcp.memerr - tmem0));
+        cliPrintf("  => xmit >> data_segs 이면 재전송 폭주, xmit~=data_segs 이면 순수 cwnd 정체\n");
+      }
+    }
+    ret = true;
+  }
+
   if (ret == false)
   {
     cliPrintf("iperf server          # TCP RX (PC: iperf -c <board_ip>)\n");
     cliPrintf("iperf client [pc_ip]  # TCP TX (PC: iperf -s)\n");
+    cliPrintf("iperf tcptx [pc_ip]   # TCP TX (PC: python3 test/tcp_sink.py)\n");
     cliPrintf("iperf udprx           # UDP RX (PC: iperf -c <board_ip> -u -b 50M)\n");
     cliPrintf("iperf udptx [pc_ip]   # UDP TX (PC: iperf -s -u)\n");
     cliPrintf("(press any key to stop a running test)\n");

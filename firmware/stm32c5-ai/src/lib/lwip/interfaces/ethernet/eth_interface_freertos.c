@@ -158,6 +158,10 @@ static volatile BaseType_t RunDataWorkerThread = pdTRUE;
   */
 static volatile BaseType_t RunLinkMonitorThread = pdTRUE;
 
+/* 진단용 카운터 (iperf.c 에서 extern 으로 읽음) */
+volatile uint32_t lwip_hw_event_count      = 0;  /* data_event_cb 총 호출 수 */
+volatile uint32_t lwip_rx_event_drop_count = 0;  /* ISR 큐 풀로 버려진 HW 이벤트 수 */
+
 
 /* Private function prototypes -----------------------------------------------*/
 /**
@@ -778,7 +782,12 @@ void data_event_cb(hal_eth_handle_t *p_eth, uint32_t channel)
   message.p_eth = p_eth;
 
   /* just send a message to the data worker thread that will do the actual processing */
-  xQueueSendFromISR(data_worker_queue, &message, &xHigherPriorityTaskWoken1);
+  lwip_hw_event_count++;
+  if (xQueueSendFromISR(data_worker_queue, &message, &xHigherPriorityTaskWoken1) != pdTRUE)
+  {
+    /* 큐가 가득 차 이 HW 이벤트를 버림 -> RX(ACK)/TX 이벤트 처리 지연 */
+    lwip_rx_event_drop_count++;
+  }
   vTaskNotifyGiveFromISR(data_worker_task, &xHigherPriorityTaskWoken2);
   portYIELD_FROM_ISR((xHigherPriorityTaskWoken1) || (xHigherPriorityTaskWoken2));
 }

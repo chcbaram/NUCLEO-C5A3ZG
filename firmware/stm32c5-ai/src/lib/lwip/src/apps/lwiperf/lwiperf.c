@@ -354,6 +354,21 @@ lwiperf_tcp_client_send_more(lwiperf_state_tcp_t *conn)
     }
   } while (send_more);
 
+  /* [진단] pcb 내부 상태 500ms 마다 출력 */
+  {
+    extern void logPrintf(const char *fmt, ...);
+    static u32_t last_log = 0;
+    u32_t now2 = sys_now();
+    struct tcp_pcb *p = conn->conn_pcb;
+    if ((p != NULL) && ((now2 - last_log) >= 500)) {
+      last_log = now2;
+      logPrintf("pcb: cwnd=%u ssth=%u sndwnd=%u sndbuf=%u qlen=%u rto=%d nrtx=%u inflight=%u\n",
+                (unsigned)p->cwnd, (unsigned)p->ssthresh, (unsigned)p->snd_wnd,
+                (unsigned)p->snd_buf, (unsigned)p->snd_queuelen, (int)p->rto,
+                (unsigned)p->nrtx, (unsigned)(p->snd_nxt - p->lastack));
+    }
+  }
+
   tcp_output(conn->conn_pcb);
   return ERR_OK;
 }
