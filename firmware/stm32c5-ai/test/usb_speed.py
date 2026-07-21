@@ -37,6 +37,26 @@ def human(bps):
     return f"{bps / 1024:6.1f} KB/s ({mbps:6.2f} Mbps)"
 
 
+# 무결성 검증용 증가 시퀀스(0,1,2,...,255,0,...). 미리 타일링해 슬라이스로 빠르게 생성.
+_TILE = bytes(range(256)) * 512   # 128KB
+
+
+def seq_bytes(start, length):
+    s = start & 0xFF
+    return _TILE[s:s + length]
+
+
+def count_discont(data, exp_first):
+    # data 가 exp_first 부터 증가 시퀀스인지 검사, 불연속(유실/손상) 지점 수를 반환
+    errors = 0
+    expv = exp_first
+    for b in data:
+        if b != expv:
+            errors += 1
+        expv = (b + 1) & 0xFF
+    return errors
+
+
 def cli_echo(cli_ser, stop_evt):
     # 보드가 CLI(UART) 로 출력하는 "tx : N KB/s" 등을 그대로 보여준다.
     buf = b""
@@ -56,15 +76,22 @@ def cli_echo(cli_ser, stop_evt):
 
 
 def measure_rx(ser, secs):
-    # 보드 송신 -> PC 수신 (usb tx)
-    print(f"[tx] 보드 송신 수신 측정 {secs}s ...")
+    # 보드 송신 -> PC 수신 + 무결성 검증 (usb tx)
+    print(f"[tx] 보드 송신 수신+무결성 검증 {secs}s ...")
     total = 0
+    errors = 0
+    exp = None
     t0 = time.time()
     mark = t0
     mark_bytes = 0
     while time.time() - t0 < secs:
         data = ser.read(65536)   # timeout 내 도착분 반환
         if data:
+            if exp is None:
+                exp = data[0]
+            if data != seq_bytes(exp, len(data)):   # 빠른 C 비교, 불일치 시에만 정밀 카운트
+                errors += count_discont(data, exp)
+            exp = (data[-1] + 1) & 0xFF
             total += len(data)
             mark_bytes += len(data)
         now = time.time()
@@ -73,22 +100,24 @@ def measure_rx(ser, secs):
             mark = now
             mark_bytes = 0
     dt = time.time() - t0
-    print(f"[tx] 평균: {human(total / dt)}   총 {total/1024:.1f} KB / {dt:.1f}s")
+    verdict = "유실 없음 OK" if errors == 0 else f"불연속(유실/손상) {errors} 건 !!"
+    print(f"[tx] 평균: {human(total / dt)}   총 {total/1024:.1f} KB / {dt:.1f}s   무결성: {verdict}")
 
 
 def measure_tx(ser, secs):
-    # PC 송신 -> 보드 수신 (usb rx)
-    print(f"[rx] PC 송신 측정 {secs}s ...")
-    chunk = bytes((i & 0xFF) for i in range(4096))
+    # PC 송신(증가 시퀀스) -> 보드 수신/검증 (usb rx) : 보드측 err 카운트로 유실 확인
+    print(f"[rx] PC 송신(증가 시퀀스) 측정 {secs}s ...")
     total = 0
+    seq = 0
     t0 = time.time()
     mark = t0
     mark_bytes = 0
     while time.time() - t0 < secs:
-        n = ser.write(chunk)
+        n = ser.write(seq_bytes(seq, 4096))
         if n:
             total += n
             mark_bytes += n
+            seq = (seq + n) & 0xFF            # 실제 보낸 만큼 진행(연속성 유지)
         now = time.time()
         if now - mark >= 1.0:
             print(f"    {human(mark_bytes / (now - mark))}")
@@ -96,7 +125,7 @@ def measure_tx(ser, secs):
             mark_bytes = 0
     ser.flush()
     dt = time.time() - t0
-    print(f"[rx] 평균: {human(total / dt)}   총 {total/1024:.1f} KB / {dt:.1f}s")
+    print(f"[rx] 평균: {human(total / dt)}   총 {total/1024:.1f} KB / {dt:.1f}s   (보드 'err' 카운트=유실)")
 
 
 def _reader(ser, stop, ctr):

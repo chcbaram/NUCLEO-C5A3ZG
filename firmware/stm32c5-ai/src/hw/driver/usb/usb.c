@@ -214,9 +214,7 @@ void cliCmd(cli_args_t *args)
     uint8_t  buf[512];
     uint32_t pre_time;
     uint32_t tx_cnt = 0;
-
-    for (int i = 0; i < (int)sizeof(buf); i++)   // 송신 패턴
-      buf[i] = '0' + (i % 10);
+    uint8_t  seq = 0;             // 무결성 검증용 증가 시퀀스
 
     pre_time = millis();
     while (cliKeepLoop())
@@ -227,7 +225,11 @@ void cliCmd(cli_args_t *args)
         logPrintf("tx : %d KB/s\n", tx_cnt / 1024);
         tx_cnt = 0;
       }
-      tx_cnt += cdcWrite(buf, sizeof(buf));
+      for (int i = 0; i < (int)sizeof(buf); i++)   // 연속 증가 패턴
+        buf[i] = (uint8_t)(seq + i);
+      uint32_t n = cdcWrite(buf, sizeof(buf));
+      seq += (uint8_t)n;                           // 실제 보낸 만큼만 진행(연속성 유지)
+      tx_cnt += n;
     }
 
     ret = true;
@@ -237,7 +239,10 @@ void cliCmd(cli_args_t *args)
   {
     uint8_t  buf[512];
     uint32_t pre_time;
-    uint32_t rx_cnt = 0;
+    uint32_t rx_cnt  = 0;
+    uint32_t err_cnt = 0;        // 시퀀스 불연속(유실/손상) 누적 횟수
+    uint8_t  exp     = 0;
+    bool     first   = true;
 
     pre_time = millis();
     while (cliKeepLoop())
@@ -245,10 +250,18 @@ void cliCmd(cli_args_t *args)
       if (millis() - pre_time >= 1000)
       {
         pre_time = millis();
-        logPrintf("rx : %d KB/s\n", rx_cnt / 1024);
+        logPrintf("rx : %d KB/s, err : %d\n", rx_cnt / 1024, (int)err_cnt);
         rx_cnt = 0;
       }
-      rx_cnt += cdcReadBuf(buf, sizeof(buf));   // 벌크 읽기(1바이트씩 X)
+
+      uint32_t n = cdcReadBuf(buf, sizeof(buf));
+      for (uint32_t i = 0; i < n; i++)            // 수신 데이터 연속성 검증
+      {
+        if (first) { exp = buf[i]; first = false; }
+        if (buf[i] != exp) err_cnt++;             // 불연속 = 유실/손상 1건
+        exp = (uint8_t)(buf[i] + 1);              // 수신값 기준 재동기(연쇄 방지)
+      }
+      rx_cnt += n;
     }
 
     ret = true;
