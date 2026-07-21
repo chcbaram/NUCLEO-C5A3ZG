@@ -148,13 +148,7 @@ uint8_t cdcRead(void)
 
 uint32_t cdcReadBuf(uint8_t *p_data, uint32_t length)
 {
-  uint32_t i;
-
-  for (i = 0; i < length && cdcIfAvailable() > 0; i++)
-  {
-    p_data[i] = cdcIfRead();
-  }
-  return i;
+  return cdcIfReadBuf(p_data, length);
 }
 
 uint32_t cdcWrite(uint8_t *p_data, uint32_t length)

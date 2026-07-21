@@ -88,8 +88,74 @@ bool cdcIfInit(void)
   return true;
 }
 
+/* 완료(CTR) 구동: SOF 인터럽트 없이, 전송완료 콜백과 앱 드레인으로 이어간다.
+   (SOF 구동은 신형 HAL 에서 고부하 시 SOF 처리가 멈춰 스톨됨) */
+static void cdcTxKick(void)
+{
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)USBD_Device.pClassData;
+  uint32_t primask;
+  uint32_t tx_len;
+
+  if (hcdc == NULL) return;
+
+  primask = __get_PRIMASK();
+  __disable_irq();                              // 스레드<->ISR 재진입 방지
+  if (hcdc->TxState == 0U)
+  {
+    tx_len = qbufferAvailable(&q_tx);           // 완료 구동: 멀티패킷 전송(HAL 이 64B 단위로 분할)
+    if (tx_len > APP_TX_DATA_SIZE)
+      tx_len = APP_TX_DATA_SIZE;
+    if (tx_len > 0U)
+    {
+      qbufferRead(&q_tx, UserTxBufferFS, tx_len);
+      USBD_CDC_SetTxBuffer(&USBD_Device, UserTxBufferFS, tx_len);
+      USBD_CDC_TransmitPacket(&USBD_Device);    // TxState=1, 완료 시 CDC_TransmitCplt_FS
+    }
+  }
+  __set_PRIMASK(primask);
+}
+
+#define CDC_RX_CHUNK   1024U   // OUT 멀티패킷 수신 청크(64 배수, <= UserRxBufferFS)
+
+/* 인터럽트 비활성(또는 ISR) 상태에서 호출. 수신 미진행 상태에서 q_rx 여유만큼
+   64배수 멀티패킷 수신을 arm 한다(여유<64 면 재무장 안 함 = OUT NAK 흐름제어). */
+static void cdcRxArmLocked(void)
+{
+  uint32_t room  = (q_rx.len - qbufferAvailable(&q_rx)) - 1U;
+  uint32_t chunk = (room > CDC_RX_CHUNK) ? CDC_RX_CHUNK : room;
+
+  chunk &= ~(uint32_t)(CDC_DATA_FS_MAX_PACKET_SIZE - 1U);   // 64 배수로 내림
+
+  if (chunk >= CDC_DATA_FS_MAX_PACKET_SIZE)
+  {
+    is_rx_full = false;
+    USBD_CDC_SetRxBuffer(&USBD_Device, UserRxBufferFS);
+    USBD_LL_PrepareReceive(&USBD_Device, CDC_OUT_EP, UserRxBufferFS, chunk);
+  }
+  else
+  {
+    is_rx_full = true;
+  }
+}
+
+static void cdcRxRearm(void)
+{
+  uint32_t primask;
+
+  if (!is_rx_full) return;
+
+  primask = __get_PRIMASK();
+  __disable_irq();
+  if (is_rx_full)
+  {
+    cdcRxArmLocked();
+  }
+  __set_PRIMASK(primask);
+}
+
 uint32_t cdcIfAvailable(void)
 {
+  cdcRxRearm();
   return qbufferAvailable(&q_rx);
 }
 
@@ -98,8 +164,23 @@ uint8_t cdcIfRead(void)
   uint8_t ret = 0;
 
   qbufferRead(&q_rx, &ret, 1);
+  cdcRxRearm();
 
   return ret;
+}
+
+uint32_t cdcIfReadBuf(uint8_t *p_data, uint32_t length)   // 벌크 읽기(처리량용)
+{
+  uint32_t avail = qbufferAvailable(&q_rx);
+
+  if (avail > length) avail = length;
+  if (avail > 0)
+  {
+    qbufferRead(&q_rx, p_data, avail);
+  }
+  cdcRxRearm();
+
+  return avail;
 }
 
 uint32_t cdcIfWrite(uint8_t *p_data, uint32_t length)
@@ -131,12 +212,14 @@ uint32_t cdcIfWrite(uint8_t *p_data, uint32_t length)
       qbufferWrite(&q_tx, p_data, tx_len);
       p_data += tx_len;
       sent_len += tx_len;
+      cdcTxKick();          // 완료 구동 전송 시작/유지
     }
     else
     {
-      delay(1);
+      cdcTxKick();          // FIFO full: 밀어내고
+      delay(1);             // 양보
     }
-    
+
     if (cdcIfIsConnected() != true)
     {
       break;
@@ -148,6 +231,7 @@ uint32_t cdcIfWrite(uint8_t *p_data, uint32_t length)
     }
   }
 
+  cdcTxKick();
   return sent_len;
 }
 
@@ -187,51 +271,10 @@ uint8_t cdcIfGetType(void)
   return cdc_type;
 }
 
+// 완료(CTR) 구동으로 전환하여 SOF 는 사용하지 않는다.
 uint8_t CDC_SoF_ISR(struct _USBD_HandleTypeDef *pdev)
 {
-
-  //-- RX
-  //
-  if (is_rx_full)
-  {
-    uint32_t buf_len;
-
-    buf_len = (q_rx.len - qbufferAvailable(&q_rx)) - 1;
-
-    if (buf_len >= CDC_DATA_FS_MAX_PACKET_SIZE)
-    {
-      USBD_CDC_SetRxBuffer(&USBD_Device, &UserRxBufferFS[0]);
-      USBD_CDC_ReceivePacket(&USBD_Device);
-      is_rx_full = false;
-    }
-  }
-
-
-  //-- TX
-  //
-  uint32_t tx_len;
-  tx_len = qbufferAvailable(&q_tx);
-
-  if (tx_len%CDC_DATA_FS_MAX_PACKET_SIZE == 0)
-  {
-    if (tx_len > 0)
-    {
-      tx_len = tx_len - 1;
-    }
-  }
-
-  if (tx_len > 0)
-  {
-    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)USBD_Device.pClassData;
-    if (hcdc->TxState == 0)
-    {
-      qbufferRead(&q_tx, UserTxBufferFS, tx_len);
-
-      USBD_CDC_SetTxBuffer(&USBD_Device, UserTxBufferFS, tx_len);
-      USBD_CDC_TransmitPacket(&USBD_Device);
-    }
-  }
-
+  (void)pdev;
   return 0;
 }
 
@@ -416,19 +459,8 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
     }
   }
 
-  uint32_t buf_len;
-
-  buf_len = (q_rx.len - qbufferAvailable(&q_rx)) - 1;
-
-  if (buf_len >= CDC_DATA_FS_MAX_PACKET_SIZE)
-  {
-    USBD_CDC_SetRxBuffer(&USBD_Device, &Buf[0]);
-    USBD_CDC_ReceivePacket(&USBD_Device);
-  }
-  else
-  {
-    is_rx_full = true;
-  }
+  // 완료 구동: q_rx 여유만큼 멀티패킷 수신 재무장(여유<64 면 NAK 흐름제어)
+  cdcRxArmLocked();
 
   return (USBD_OK);
 }
@@ -477,6 +509,8 @@ static int8_t CDC_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
   UNUSED(Buf);
   UNUSED(Len);
   UNUSED(epnum);
+
+  cdcTxKick();   // 완료 구동: 다음 청크 이어보내기 (SOF 불필요)
   /* USER CODE END 13 */
   return result;
 }

@@ -101,7 +101,10 @@ def measure_tx(ser, secs):
 
 def _reader(ser, stop, ctr):
     while not stop.is_set():
-        data = ser.read(65536)
+        try:
+            data = ser.read(65536)
+        except Exception:
+            break                      # 포트 닫힘/에러 시 조용히 종료
         if data:
             ctr["rx"] += len(data)
 
@@ -109,7 +112,10 @@ def _reader(ser, stop, ctr):
 def _writer(ser, stop, ctr):
     chunk = bytes((i & 0xFF) for i in range(4096))
     while not stop.is_set():
-        n = ser.write(chunk)
+        try:
+            n = ser.write(chunk)
+        except Exception:
+            break                      # 포트 닫힘/에러 시 조용히 종료
         if n:
             ctr["tx"] += n
 
@@ -134,8 +140,8 @@ def measure_both(ser, secs):
         last, last_tx, last_rx = now, ctr["tx"], ctr["rx"]
 
     stop.set()
-    rt.join(timeout=1)
-    wt.join(timeout=1)
+    rt.join(timeout=3)
+    wt.join(timeout=3)
     dt = time.time() - t0
     print(f"[both] 평균  tx {human(ctr['tx']/dt)}   rx {human(ctr['rx']/dt)}")
 
