@@ -7,6 +7,15 @@
 #include "log.h"
 #include "osal/thread.h"
 
+#if HW_USB_STACK == HW_USB_STACK_ST
+#include "usbd_core.h"
+#include "usbd_cdc.h"
+#include "usbd_cdc_if.h"
+#include "usbd_desc.h"
+
+USBD_HandleTypeDef USBD_Device;
+#endif
+
 
 static bool       is_init     = false;
 static UsbMode_t  is_usb_mode = USB_NON_MODE;
@@ -21,9 +30,11 @@ static void usbThread(void const *arg);
 #endif
 
 
+#if HW_USB_STACK == HW_USB_STACK_TINYUSB
 /* STM32C5 USB 48MHz 클럭 설정 (ST 공식 NUCLEO-C5A3ZG 예제 기준)
    - CK48 = HSIDIV3 (HSI/3 = 48MHz), CRS/VddUSB/전용 GPIO 설정 불필요
-   - FreeRTOS 에서 ISR->FreeRTOS API 호출을 위해 IRQ 우선순위는 syscall 범위(>=5)로 */
+   - FreeRTOS 에서 ISR->FreeRTOS API 호출을 위해 IRQ 우선순위는 syscall 범위(>=5)로
+   (ST 백엔드는 USBD_LL_Init(usbd_conf.c)에서 동일 처리) */
 static void usbClockInit(void)
 {
   HAL_RCC_USB_EnableClock();
@@ -32,13 +43,14 @@ static void usbClockInit(void)
   HAL_CORTEX_NVIC_SetPriority(USB_DRD_FS_IRQn, HAL_CORTEX_NVIC_PREEMP_PRIORITY_7, HAL_CORTEX_NVIC_SUB_PRIORITY_0);
   HAL_CORTEX_NVIC_EnableIRQ(USB_DRD_FS_IRQn);
 }
+#endif
 
 
 bool usbInit(void)
 {
+#if HW_USB_STACK == HW_USB_STACK_TINYUSB
   usbClockInit();
 
-#if HW_USB_STACK == HW_USB_STACK_TINYUSB
   tusb_rhport_init_t dev_init =
   {
     .role  = TUSB_ROLE_DEVICE,
@@ -51,7 +63,7 @@ bool usbInit(void)
   // TinyUSB 스택은 tud_task() 를 주기적으로 펌핑해야 하므로 전용 스레드로 구동
   threadCreate("usb", usbThread, NULL, _HW_DEF_THREAD_USB_PRI, _HW_DEF_THREAD_USB_STACK);
 #else
-  usbBegin(USB_CDC_MODE);
+  usbBegin(USB_CDC_MODE);   // USBD_LL_Init(usbd_conf.c)이 클럭/NVIC 처리, 인터럽트 구동
 #endif
 
 #if CLI_USE(HW_USB)
@@ -68,8 +80,16 @@ bool usbBegin(UsbMode_t usb_mode)
   is_usb_mode = usb_mode;
   return true;
 #else
-  // TODO: ST USB Device Library backend (usbd_conf.c 신형 HAL) 연동 예정
-  (void)usb_mode;
+  if (usb_mode == USB_CDC_MODE)
+  {
+    USBD_Init(&USBD_Device, &VCP_Desc, DEVICE_FS);
+    USBD_RegisterClass(&USBD_Device, USBD_CDC_CLASS);
+    USBD_CDC_RegisterInterface(&USBD_Device, &USBD_CDC_fops);
+    USBD_Start(&USBD_Device);
+
+    is_usb_mode = USB_CDC_MODE;
+    return true;
+  }
   return false;
 #endif
 }
@@ -99,7 +119,11 @@ bool usbIsConnect(void)
 #if HW_USB_STACK == HW_USB_STACK_TINYUSB
   return (tud_connected() && !tud_suspended());
 #else
-  return false;
+  if (USBD_Device.pClassData == NULL)                   return false;
+  if (USBD_Device.dev_state  != USBD_STATE_CONFIGURED)  return false;
+  if (USBD_Device.dev_config == 0)                      return false;
+  if (USBD_is_connected()    == false)                  return false;
+  return true;
 #endif
 }
 

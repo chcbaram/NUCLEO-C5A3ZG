@@ -28,6 +28,7 @@ if(HW_USB_STACK EQUAL 1)
   # ST USB Device Library (신형 HAL PCD) - usbd_conf.c 등은 usb/stm32/ 에 위치
   file(GLOB_RECURSE USB_SRC_FILES CONFIGURE_DEPENDS
     src/lib/ST/STM32_USB_Device_Library/Core/Src/*.c
+    src/hw/driver/usb/stm32/*.c
   )
   set(USB_INC_DIRS
     src/hw/driver/usb
@@ -103,7 +104,10 @@ file(GLOB_RECURSE SRC_FILES_SPECIAL CONFIGURE_DEPENDS
 
 # 특정 폴더를 빌드에서 제외한다.
 #
-set(EXCLUDE_PATHS 
+set(EXCLUDE_PATHS
+  # ST USB Device Library 백엔드 소스는 재귀 glob 에서 빼고, HW_USB_STACK==1 일 때만
+  # 위 USB_SRC_FILES 로 명시 추가한다(TinyUSB 빌드에서 컴파일되지 않도록).
+  src/hw/driver/usb/stm32
 )
 
 foreach(TMP_PATH ${SRC_FILES_RECURSE}) 

@@ -11,12 +11,13 @@
       "problemMatcher": []
     },  
     {
+      // 기본 빌드 = TinyUSB 스택으로 고정(결정적). ST 는 build-usb-stm32 사용.
       "label": "build-build",
       "type": "shell",
       "windows":{
-        "command": "cmake -S . -B build -G 'MinGW Makefiles'; cmake --build build -j20",
+        "command": "cmake -S . -B build -G 'MinGW Makefiles' -DHW_USB_STACK=0; cmake --build build -j20",
       },
-      "command": "cmake -S . -B build; cmake --build build -j20",    
+      "command": "cmake -S . -B build -DHW_USB_STACK=0; cmake --build build -j20",
       "problemMatcher": [],
       "group": {
         "kind": "build",

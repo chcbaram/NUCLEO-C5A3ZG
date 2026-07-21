@@ -453,9 +453,16 @@ extern "C" {
   * @{
   */
 /* ########################## HAL_PCD Config #################################### */
+/* ST USB Device Library backend(HW_USB_STACK==1) 에서만 HAL PCD 사용.
+   TinyUSB(기본) 는 레지스터 레벨이라 HAL PCD 불필요. */
+#if defined(HW_USB_STACK) && (HW_USB_STACK == 1)
+#define USE_HAL_PCD_MODULE                      1U
+#define USE_HAL_PCD_USER_DATA                   1U
+#else
 #define USE_HAL_PCD_MODULE                      0U
-#define USE_HAL_PCD_REGISTER_CALLBACKS          0U
 #define USE_HAL_PCD_USER_DATA                   0U
+#endif
+#define USE_HAL_PCD_REGISTER_CALLBACKS          0U
 #define USE_HAL_PCD_GET_LAST_ERRORS             0U
 #define USE_HAL_PCD_USB_DOUBLE_BUFFER           0U
 #define USE_HAL_PCD_USB_LPM                     0U
