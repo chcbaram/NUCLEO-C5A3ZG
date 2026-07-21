@@ -24,11 +24,29 @@
       }
     },
     {
+      "label": "build-usb-tinyusb",
+      "type": "shell",
+      "windows":{
+        "command": "cmake -S . -B build -G 'MinGW Makefiles' -DHW_USB_STACK=0; cmake --build build -j20",
+      },
+      "command": "cmake -S . -B build -DHW_USB_STACK=0; cmake --build build -j20",
+      "problemMatcher": []
+    },
+    {
+      "label": "build-usb-stm32",
+      "type": "shell",
+      "windows":{
+        "command": "cmake -S . -B build -G 'MinGW Makefiles' -DHW_USB_STACK=1; cmake --build build -j20",
+      },
+      "command": "cmake -S . -B build -DHW_USB_STACK=1; cmake --build build -j20",
+      "problemMatcher": []
+    },
+    {
       "label": "build-clean",
       "type": "shell",
       "command": "cmake --build build --target clean",
       "problemMatcher": [],
-    }, 
+    },
 
   ]
 }

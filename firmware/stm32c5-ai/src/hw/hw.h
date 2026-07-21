@@ -18,6 +18,7 @@ extern "C" {
 #include "rtc.h"
 #include "qbuffer.h"
 #include "cdc.h"
+#include "usb/usb.h"
 #include "gpio.h"
 #include "eth/eth.h"
 #include "osal/thread.h"

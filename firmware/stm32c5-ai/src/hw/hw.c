@@ -44,5 +44,8 @@ bool hwInit(void)
   ethInit();
   // gpioInit();
 
+  cdcInit();
+  usbInit();
+
   return true;
 }

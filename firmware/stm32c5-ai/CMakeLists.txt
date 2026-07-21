@@ -17,6 +17,42 @@ project(${PRJ_NAME}
 set(EXECUTABLE ${PRJ_NAME}.elf)
 
 
+# USB 스택 선택: 0 = TinyUSB, 1 = ST USB Device Library
+#   cmake -DHW_USB_STACK=1 .. 로 ST 스택 빌드 전환 가능
+#
+if(NOT DEFINED HW_USB_STACK)
+  set(HW_USB_STACK 0)
+endif()
+
+if(HW_USB_STACK EQUAL 1)
+  # ST USB Device Library (신형 HAL PCD) - usbd_conf.c 등은 usb/stm32/ 에 위치
+  file(GLOB_RECURSE USB_SRC_FILES CONFIGURE_DEPENDS
+    src/lib/ST/STM32_USB_Device_Library/Core/Src/*.c
+  )
+  set(USB_INC_DIRS
+    src/hw/driver/usb
+    src/hw/driver/usb/stm32
+    src/hw/driver/usb/stm32/usb_cdc
+    src/lib/ST/STM32_USB_Device_Library/Core/Inc
+  )
+else()
+  # TinyUSB (device, CDC, STM32 fsdev DCD) - tusb_config.h 는 usb/tinyusb/ 에 위치
+  set(USB_SRC_FILES
+    src/lib/tinyusb/src/tusb.c
+    src/lib/tinyusb/src/common/tusb_fifo.c
+    src/lib/tinyusb/src/device/usbd.c
+    src/lib/tinyusb/src/class/cdc/cdc_device.c
+    src/lib/tinyusb/src/portable/st/stm32_fsdev/dcd_stm32_fsdev.c
+    src/lib/tinyusb/src/portable/st/stm32_fsdev/fsdev_common.c
+  )
+  set(USB_INC_DIRS
+    src/hw/driver/usb
+    src/hw/driver/usb/tinyusb
+    src/lib/tinyusb/src
+  )
+endif()
+
+
 
 # 지정한 폴더에 있는 파일만 포함한다.
 #
@@ -80,10 +116,11 @@ foreach(TMP_PATH ${SRC_FILES_RECURSE})
 endforeach(TMP_PATH)
 
 
-add_executable(${EXECUTABLE} 
+add_executable(${EXECUTABLE}
   ${SRC_FILES}
   ${SRC_FILES_RECURSE}
   ${SRC_FILES_SPECIAL}
+  ${USB_SRC_FILES}
 )
 
 
@@ -102,6 +139,9 @@ target_include_directories(${EXECUTABLE} PRIVATE
   src/hw
   src/hw/driver
   src/lib
+
+  # USB (스택별 소스/헤더 경로: 위 HW_USB_STACK 분기에서 설정)
+  ${USB_INC_DIRS}
 
   src/lib/ST/CMSIS/Include
   src/lib/ST/CMSIS/Device/ST/STM32C5xx/Include
@@ -127,6 +167,7 @@ target_compile_definitions(${EXECUTABLE} PRIVATE
   -DUSE_HAL_DRIVER
   -DUSE_EXTERNAL_ENV
   -DUSE_FULL_ASSERT
+  -DHW_USB_STACK=${HW_USB_STACK}
   )
 
 target_compile_options(${EXECUTABLE} PRIVATE

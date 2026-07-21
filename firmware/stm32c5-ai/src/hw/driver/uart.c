@@ -55,9 +55,12 @@ static hal_dma_handle_t hLPDMA1_CH0;
 
 const static uart_hw_t uart_hw_tbl[UART_MAX_CH] =
 {
-  {"USART1 SWD   ", HAL_UART2, &hUSART2, false},
+  {"USART1 SWD   ", HAL_UART2,      &hUSART2, false},
 #if HW_UART_MAX_CH >= 2
-  {"NET TELNET   ", HAL_UART2, NULL,     false},   /* 가상채널: p_driver(cli_net) 로 입출력, HW 미사용 */
+  {"NET TELNET   ", (hal_uart_t)0,  NULL,     false},   /* 가상채널: p_driver(cli_net) 로 입출력, HW 미사용 */
+#endif
+#if HW_UART_MAX_CH >= 3
+  {"USB CDC      ", (hal_uart_t)0,  NULL,     false},   /* 가상채널: cdc*(USB CDC) 로 입출력, HW 미사용 */
 #endif
 };
 
@@ -157,11 +160,12 @@ bool uartOpen(uint8_t ch, uint32_t baud)
       }
       break;
 
-    case _DEF_UART2:
+    case _DEF_UART2:   /* NET 텔넷 (p_driver 로 처리되지만 안전용 fallback) */
+    case _DEF_UART3:   /* USB CDC 가상 채널: 열림 상태만 표시(스택은 usbInit 에서 별도 초기화) */
       uart_tbl[ch].baud    = baud;
       uart_tbl[ch].is_open = true;
       ret = true;
-      break;      
+      break;
   }
 
   return ret;
@@ -276,11 +280,11 @@ uint32_t uartAvailable(uint8_t ch)
       ret = qbufferAvailable(&uart_tbl[ch].qbuffer);      
       break;
 
-    case _DEF_UART2:
+    case _DEF_UART3:
       #if HW_USE_CDC == 1
       ret = cdcAvailable();
       #endif
-      break;      
+      break;
   }
 
   return ret;
@@ -329,11 +333,11 @@ uint8_t uartRead(uint8_t ch)
       qbufferRead(&uart_tbl[ch].qbuffer, &ret, 1);
       break;
 
-    case _DEF_UART2:
+    case _DEF_UART3:
       #if HW_USE_CDC == 1
       ret = cdcRead();
       #endif
-      break;      
+      break;
   }
   uart_tbl[ch].rx_cnt++;
 
@@ -362,11 +366,11 @@ uint32_t uartWrite(uint8_t ch, uint8_t *p_data, uint32_t length)
       }
       break;
 
-    case _DEF_UART2:
+    case _DEF_UART3:
       #if HW_USE_CDC == 1
       ret = cdcWrite(p_data, length);
       #endif
-      break;      
+      break;
   }
   uart_tbl[ch].tx_cnt += ret;
 

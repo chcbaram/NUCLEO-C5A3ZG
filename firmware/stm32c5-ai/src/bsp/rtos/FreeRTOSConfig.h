@@ -32,6 +32,11 @@
 #define configMAX_PRIORITIES              (56)
 #define configCPU_CLOCK_HZ                (SystemCoreClock)
 #define configTICK_RATE_HZ                ((TickType_t)1000)
+
+/* FreeRTOS V10.3.1 에는 pdTICKS_TO_MS 매크로가 없어 TinyUSB(osal_freertos) 용으로 보강 */
+#ifndef pdTICKS_TO_MS
+#define pdTICKS_TO_MS( xTicks )  ( ( TickType_t ) ( ( ( uint64_t ) ( xTicks ) * ( uint64_t ) 1000U ) / ( uint64_t ) configTICK_RATE_HZ ) )
+#endif
 #define configMINIMAL_STACK_SIZE          ((uint16_t)128)
 #define configTOTAL_HEAP_SIZE             ((size_t)(64 * 1024))
 #define configMAX_TASK_NAME_LEN           (16)
