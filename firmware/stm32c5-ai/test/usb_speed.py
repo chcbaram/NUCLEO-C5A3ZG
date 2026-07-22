@@ -113,7 +113,10 @@ def measure_tx(ser, secs):
     mark = t0
     mark_bytes = 0
     while time.time() - t0 < secs:
-        n = ser.write(seq_bytes(seq, 4096))
+        try:
+            n = ser.write(seq_bytes(seq, 4096))
+        except serial.SerialTimeoutException:
+            n = 0                            # 보드 스로틀(NAK) 중 - 다음 루프에서 시간 체크 후 재시도
         if n:
             total += n
             mark_bytes += n
@@ -206,7 +209,9 @@ def main():
         print(f"[준비] UART CLI 에서 'usb {args.mode}' 를 먼저 실행하세요. 3초 후 측정 시작...")
         time.sleep(3)
 
-    ser = serial.Serial(args.port, args.baud, timeout=1)
+    # write_timeout 을 둬야 rx(PC 송신) 시 보드가 NAK 흐름제어로 스로틀할 때
+    # ser.write 가 영원히 블로킹되어 측정 루프가 시간 체크를 못 하는 것을 방지한다.
+    ser = serial.Serial(args.port, args.baud, timeout=1, write_timeout=1)
     ser.reset_input_buffer()
     ser.reset_output_buffer()
 

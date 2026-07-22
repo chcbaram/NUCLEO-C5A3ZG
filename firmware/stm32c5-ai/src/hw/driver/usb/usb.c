@@ -16,6 +16,11 @@
 USBD_HandleTypeDef USBD_Device;
 #endif
 
+#if HW_USB_STACK == HW_USB_STACK_USBX
+#include "usbx/mx_usbx_app.h"
+#include "usbx/usbx_cdc.h"
+#endif
+
 
 static bool       is_init     = false;
 static UsbMode_t  is_usb_mode = USB_NON_MODE;
@@ -62,8 +67,14 @@ bool usbInit(void)
 
   // TinyUSB 스택은 tud_task() 를 주기적으로 펌핑해야 하므로 전용 스레드로 구동
   threadCreate("usb", usbThread, NULL, _HW_DEF_THREAD_USB_PRI, _HW_DEF_THREAD_USB_STACK);
-#else
+#elif HW_USB_STACK == HW_USB_STACK_ST
   usbBegin(USB_CDC_MODE);   // USBD_LL_Init(usbd_conf.c)이 클럭/NVIC 처리, 인터럽트 구동
+#else
+  is_usb_mode = USB_CDC_MODE;
+  {
+    UINT st = app_usbx_init();   // USBX: 바이트풀 + 디바이스 스택 + DCD/리더 스레드
+    logPrintf("[%s] app_usbx_init : 0x%X\n", (st == 0) ? "OK" : "E_", (int)st);
+  }
 #endif
 
 #if CLI_USE(HW_USB)
@@ -76,10 +87,7 @@ bool usbInit(void)
 
 bool usbBegin(UsbMode_t usb_mode)
 {
-#if HW_USB_STACK == HW_USB_STACK_TINYUSB
-  is_usb_mode = usb_mode;
-  return true;
-#else
+#if HW_USB_STACK == HW_USB_STACK_ST
   if (usb_mode == USB_CDC_MODE)
   {
     USBD_Init(&USBD_Device, &VCP_Desc, DEVICE_FS);
@@ -91,6 +99,9 @@ bool usbBegin(UsbMode_t usb_mode)
     return true;
   }
   return false;
+#else
+  is_usb_mode = usb_mode;   // TinyUSB / USBX 는 usbInit 에서 초기화
+  return true;
 #endif
 }
 
@@ -118,12 +129,14 @@ bool usbIsConnect(void)
 {
 #if HW_USB_STACK == HW_USB_STACK_TINYUSB
   return (tud_connected() && !tud_suspended());
-#else
+#elif HW_USB_STACK == HW_USB_STACK_ST
   if (USBD_Device.pClassData == NULL)                   return false;
   if (USBD_Device.dev_state  != USBD_STATE_CONFIGURED)  return false;
   if (USBD_Device.dev_config == 0)                      return false;
   if (USBD_is_connected()    == false)                  return false;
   return true;
+#else
+  return usbxCdcIsConnect();
 #endif
 }
 

@@ -63,10 +63,11 @@
 #define _USE_HW_USB
 #define _USE_HW_CDC
 
-/* USB 스택 선택: 0 = TinyUSB, 1 = ST USB Device Library
-   빌드에서 -DHW_USB_STACK=1 로 오버라이드 가능 */
+/* USB 스택 선택: 0 = TinyUSB, 1 = ST USB Device Library, 2 = Azure RTOS USBX
+   빌드에서 -DHW_USB_STACK=1(또는 2) 로 오버라이드 가능 */
 #define      HW_USB_STACK_TINYUSB   0
 #define      HW_USB_STACK_ST        1
+#define      HW_USB_STACK_USBX      2
 #ifndef      HW_USB_STACK
 #define      HW_USB_STACK           HW_USB_STACK_TINYUSB
 #endif

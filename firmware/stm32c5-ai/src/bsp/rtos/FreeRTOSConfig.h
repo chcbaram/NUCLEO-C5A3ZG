@@ -51,6 +51,10 @@
 #define configCHECK_FOR_STACK_OVERFLOW    2
 #define configUSE_MALLOC_FAILED_HOOK      1
 #define configUSE_APPLICATION_TASK_TAG    1
+/* USBX(HW_USB_STACK==2) FreeRTOS 포트가 thread-local storage(index 0) 사용 */
+#if defined(HW_USB_STACK) && (HW_USB_STACK == 2)
+#define configNUM_THREAD_LOCAL_STORAGE_POINTERS  1
+#endif
 #define configGENERATE_RUN_TIME_STATS     0
 #define configUSE_STATS_FORMATTING_FUNCTIONS 1
 

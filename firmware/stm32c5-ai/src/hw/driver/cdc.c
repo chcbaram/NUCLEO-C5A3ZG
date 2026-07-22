@@ -117,7 +117,7 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
 //---------------------------------------------------------------------------
 //  ST USB Device Library backend (HW_USB_STACK == HW_USB_STACK_ST)
 //---------------------------------------------------------------------------
-#else
+#elif HW_USB_STACK == HW_USB_STACK_ST
 #include "stm32/usb_cdc/usbd_cdc_if.h"
 
 bool cdcInit(void)
@@ -164,6 +164,58 @@ uint32_t cdcGetBaud(void)
 uint8_t cdcGetType(void)
 {
   return cdcIfGetType();
+}
+
+//---------------------------------------------------------------------------
+//  Azure RTOS USBX backend (HW_USB_STACK == HW_USB_STACK_USBX)
+//---------------------------------------------------------------------------
+#else
+#include "usb/usbx/usbx_cdc.h"
+
+bool cdcInit(void)
+{
+  is_init = usbxCdcInit();
+  return is_init;
+}
+
+bool cdcIsInit(void)
+{
+  return is_init;
+}
+
+bool cdcIsConnect(void)
+{
+  return usbxCdcIsConnect();
+}
+
+uint32_t cdcAvailable(void)
+{
+  return usbxCdcAvailable();
+}
+
+uint8_t cdcRead(void)
+{
+  return usbxCdcRead();
+}
+
+uint32_t cdcReadBuf(uint8_t *p_data, uint32_t length)
+{
+  return usbxCdcReadBuf(p_data, length);
+}
+
+uint32_t cdcWrite(uint8_t *p_data, uint32_t length)
+{
+  return usbxCdcWrite(p_data, length);
+}
+
+uint32_t cdcGetBaud(void)
+{
+  return usbxCdcGetBaud();
+}
+
+uint8_t cdcGetType(void)
+{
+  return (usbxCdcGetBaud() == 115200) ? 1 : 0;
 }
 
 #endif

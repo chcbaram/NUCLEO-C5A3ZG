@@ -17,12 +17,14 @@ project(${PRJ_NAME}
 set(EXECUTABLE ${PRJ_NAME}.elf)
 
 
-# USB 스택 선택: 0 = TinyUSB, 1 = ST USB Device Library
-#   cmake -DHW_USB_STACK=1 .. 로 ST 스택 빌드 전환 가능
+# USB 스택 선택: 0 = TinyUSB, 1 = ST USB Device Library, 2 = Azure RTOS USBX
+#   cmake -DHW_USB_STACK=1 (또는 2) .. 로 스택 빌드 전환 가능
 #
 if(NOT DEFINED HW_USB_STACK)
   set(HW_USB_STACK 0)
 endif()
+
+set(USB_DEFS "")
 
 if(HW_USB_STACK EQUAL 1)
   # ST USB Device Library (신형 HAL PCD) - usbd_conf.c 등은 usb/stm32/ 에 위치
@@ -36,6 +38,29 @@ if(HW_USB_STACK EQUAL 1)
     src/hw/driver/usb/stm32/usb_cdc
     src/lib/ST/STM32_USB_Device_Library/Core/Inc
   )
+elseif(HW_USB_STACK EQUAL 2)
+  # Azure RTOS USBX (device CDC-ACM, FreeRTOS 포트) - 글루는 usb/usbx/ 에 위치
+  file(GLOB_RECURSE USB_SRC_FILES CONFIGURE_DEPENDS
+    src/lib/ST/usbx/common/core/src/*.c
+    src/lib/ST/usbx/common/usbx_device_classes/src/*.c
+    src/lib/ST/usbx/interfaces/usbx_stm32_device_controllers/*.c
+    src/lib/ST/usbx/interfaces/usbx_stm32_device_descriptors/*.c
+    src/lib/ST/usbx/ports/freertos/src/*.c
+    src/hw/driver/usb/usbx/*.c
+  )
+  set(USB_INC_DIRS
+    src/hw/driver/usb
+    src/hw/driver/usb/usbx
+    src/lib/ST/usbx/common/core/inc
+    src/lib/ST/usbx/common/usbx_device_classes/inc
+    src/lib/ST/usbx/interfaces/usbx_stm32_device_controllers
+    src/lib/ST/usbx/interfaces/usbx_stm32_device_descriptors
+    src/lib/ST/usbx/ports/freertos/inc
+  )
+  # UX_INCLUDE_USER_DEFINE_FILE : ux_api.h 가 ux_user.h 를 포함
+  # USBD_INCLUDE_USER_DESC_CONFIG_FILE : descriptor 생성기(ux_stm32_device_descriptors.c)가
+  #   ux_stm32_device_descriptors_config.h 를 포함(안 하면 CDC 활성 매크로 미정의로 framework 빌드 실패)
+  set(USB_DEFS UX_INCLUDE_USER_DEFINE_FILE USBD_INCLUDE_USER_DESC_CONFIG_FILE)
 else()
   # TinyUSB (device, CDC, STM32 fsdev DCD) - tusb_config.h 는 usb/tinyusb/ 에 위치
   set(USB_SRC_FILES
@@ -105,9 +130,10 @@ file(GLOB_RECURSE SRC_FILES_SPECIAL CONFIGURE_DEPENDS
 # 특정 폴더를 빌드에서 제외한다.
 #
 set(EXCLUDE_PATHS
-  # ST USB Device Library 백엔드 소스는 재귀 glob 에서 빼고, HW_USB_STACK==1 일 때만
-  # 위 USB_SRC_FILES 로 명시 추가한다(TinyUSB 빌드에서 컴파일되지 않도록).
+  # USB 백엔드 스택별 소스는 재귀 glob 에서 빼고, 해당 HW_USB_STACK 일 때만 위
+  # USB_SRC_FILES 로 명시 추가한다(다른 스택 빌드에서 컴파일되지 않도록).
   src/hw/driver/usb/stm32
+  src/hw/driver/usb/usbx
 )
 
 foreach(TMP_PATH ${SRC_FILES_RECURSE}) 
@@ -172,6 +198,7 @@ target_compile_definitions(${EXECUTABLE} PRIVATE
   -DUSE_EXTERNAL_ENV
   -DUSE_FULL_ASSERT
   -DHW_USB_STACK=${HW_USB_STACK}
+  ${USB_DEFS}
   )
 
 target_compile_options(${EXECUTABLE} PRIVATE
