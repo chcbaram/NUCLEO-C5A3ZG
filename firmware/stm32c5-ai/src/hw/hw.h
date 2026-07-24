@@ -16,6 +16,7 @@ extern "C" {
 #include "swtimer.h"
 #include "reset.h"
 #include "rtc.h"
+#include "flash.h"
 #include "qbuffer.h"
 #include "cdc.h"
 #include "usb/usb.h"

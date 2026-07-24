@@ -38,6 +38,7 @@ bool hwInit(void)
 
   rtcInit();
   resetInit();
+  flashInit();
   faultInit();
   assertInit();
   threadInit();

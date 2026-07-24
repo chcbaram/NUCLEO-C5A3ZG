@@ -47,6 +47,8 @@
 #define _USE_HW_RESET
 #define      HW_RESET_BOOT          1
 
+#define _USE_HW_FLASH
+
 #define _USE_HW_ETH
 #define      HW_ETH_PHY_ADDR        0
 
@@ -101,6 +103,7 @@
 #define _USE_CLI_HW_USB             1
 #define _USE_CLI_HW_RTC             1
 #define _USE_CLI_HW_RESET           1
+#define _USE_CLI_HW_FLASH           1
 #define _USE_CLI_HW_ETH             1
 
 
