@@ -42,6 +42,7 @@ bool hwInit(void)
   faultInit();
   assertInit();
   threadInit();
+  buttonInit();     // threadCreate() 를 사용하므로 threadInit() 뒤에 와야 한다
   ethInit();
   // gpioInit();
 

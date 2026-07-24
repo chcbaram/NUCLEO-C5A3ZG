@@ -17,6 +17,7 @@ extern "C" {
 #include "reset.h"
 #include "rtc.h"
 #include "flash.h"
+#include "button.h"
 #include "qbuffer.h"
 #include "cdc.h"
 #include "usb/usb.h"

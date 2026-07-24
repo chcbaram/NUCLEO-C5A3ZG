@@ -35,6 +35,8 @@
    선점해 스택을 서비스해야 처리량이 나온다. 그래서 CLI 보다 우선순위를 높인다. */
 #define _HW_DEF_THREAD_USB_PRI          osPriorityAboveNormal
 #define _HW_DEF_THREAD_USB_STACK        (4*1024)
+#define _HW_DEF_THREAD_BUTTON_PRI       osPriorityNormal
+#define _HW_DEF_THREAD_BUTTON_STACK     (1*1024)
 
 
 #define _USE_HW_LED
@@ -48,6 +50,16 @@
 #define      HW_RESET_BOOT          1
 
 #define _USE_HW_FLASH
+
+#define _USE_HW_BUTTON
+#define      HW_BUTTON_MAX_CH       1
+
+typedef enum
+{
+  BTN_USER,               // B1 USER (PC13)
+
+  BUTTON_PIN_MAX
+} ButtonPinName_t;
 
 #define _USE_HW_ETH
 #define      HW_ETH_PHY_ADDR        0
@@ -104,6 +116,7 @@
 #define _USE_CLI_HW_RTC             1
 #define _USE_CLI_HW_RESET           1
 #define _USE_CLI_HW_FLASH           1
+#define _USE_CLI_HW_BUTTON          1
 #define _USE_CLI_HW_ETH             1
 
 
